@@ -1,21 +1,29 @@
+
 "use client";
 
 import { useState } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Wallet, Disc3, ShoppingBag, Home, User, Menu, X } from 'lucide-react';
+import * as Dialog from "@radix-ui/react-dialog";
+import { useConnect, useAccount, Connector, useDisconnect } from "@starknet-react/core";
+import { UserCircle2 } from "lucide-react";
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [isConnected, setIsConnected] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+  const { connectors, connectAsync } = useConnect();
+  const { account, isConnected } = useAccount();
+  const { disconnect } = useDisconnect();
 
   const toggleMenu = () => {
     setIsOpen(!isOpen);
   };
 
-  const connectWallet = () => {
-    // In a real implementation, this would connect to StarkNet wallet
-    setIsConnected(true);
+  const handleConnect = async (connector: Connector) => {
+    await connectAsync({ connector });
+    setIsDialogOpen(false);
   };
 
   return (
@@ -49,17 +57,15 @@ const Navbar = () => {
 
           {/* Connect Wallet Button (Desktop) */}
           <div className="hidden md:block">
-            {isConnected ? (
-              <Button 
-                variant="outline" 
-                className="flex items-center space-x-2 py-2 text-sm rounded-full bg-[#1A1A1A] border-[#333333] hover:border-[#0EA5E9]/70 hover:bg-[#0EA5E9]/10"
-              >
-                <User className="h-4 w-4" />
-                <span className="hidden sm:inline">0x72...38F1</span>
-              </Button>
+            {isConnected && account ? (
+              <div className="flex items-center space-x-2 px-4 py-2 rounded-full border border-purple-600 bg-[#1c1f26]">
+                <UserCircle2 className="w-6 h-6 text-purple-600" />
+                <span className="hidden sm:inline text-purple-600">{account.address.slice(0, 6)}...{account.address.slice(-4)}</span>
+                <button onClick={() => disconnect()} className="ml-2 text-sm text-red-400 hover:underline">Disconnect</button>
+              </div>
             ) : (
-              <Button 
-                onClick={connectWallet}
+              <Button
+                onClick={() => setIsDialogOpen(true)}
                 className="flex items-center space-x-2 py-2 text-sm rounded-full btn-primary"
               >
                 <Wallet className="h-4 w-4" />
@@ -112,7 +118,7 @@ const Navbar = () => {
                 Dashboard
               </Link>
               <Link 
-                href="/dashboard" 
+                href="/Upload" 
                 className="flex items-center px-3 py-2 text-white/80 hover:text-white transition-colors"
                 onClick={() => setIsOpen(false)}
               >
@@ -127,19 +133,16 @@ const Navbar = () => {
                 <Disc3 className="h-5 w-5 mr-2" />
                 Profile
               </Link>
-              
-              {isConnected ? (
-                <Button 
-                  variant="outline" 
-                  className="flex items-center justify-center space-x-2 py-2 rounded-full bg-[#1A1A1A] border-[#333333]"
-                >
-                  <User className="h-4 w-4" />
-                  <span>0x72...38F1</span>
-                </Button>
+              {isConnected && account ? (
+                <div className="flex items-center space-x-2 px-4 py-2 rounded-full border border-[#2d2f36] bg-[#1c1f26]">
+                  <UserCircle2 className="w-6 h-6 text-white" />
+                  <span>{account.address.slice(0, 6)}...{account.address.slice(-4)}</span>
+                  <button onClick={() => disconnect()} className="ml-2 text-xs text-red-400 hover:underline">Disconnect</button>
+                </div>
               ) : (
-                <Button 
-                  onClick={connectWallet}
-                  className="flex items-center bg-[#0EA5E9] justify-center space-x-2 rounded-full"
+                <Button
+                  onClick={() => setIsDialogOpen(true)}
+                  className="flex items-center justify-center space-x-2 rounded-full"
                 >
                   <Wallet className="h-4 w-4" />
                   <span className=''>Connect Wallet</span>
@@ -148,6 +151,39 @@ const Navbar = () => {
             </div>
           </div>
         )}
+
+        {/* Wallet Connect Dialog */}
+        <Dialog.Root open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <Dialog.Portal>
+            <Dialog.Overlay className="fixed inset-0 border border-[#0EA5E9] bg-[0EA5E9]/60 z-40" />
+            <Dialog.Content className="fixed z-50 top-1/2 left-1/2 w-[90vw] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-background p-6 shadow-xl border border-[#1c1f26]">
+              <div className="flex items-center justify-between mb-4">
+                <Dialog.Title className="text-xl font-bold text-foreground">
+                  Connect Wallet
+                </Dialog.Title>
+                <Dialog.Close asChild>
+                  <button className="text-foreground hover:text-red-500">
+                    <X />
+                  </button>
+                </Dialog.Close>
+              </div>
+              <p className="text-sm text-muted-foreground mb-4">
+                Choose a wallet to continue.
+              </p>
+              <div className="space-y-3">
+                {connectors.map((connector) => (
+                  <button
+                    key={connector.id}
+                    onClick={() => handleConnect(connector)}
+                    className="w-full py-2 rounded-md bg-[#5C94FF] text-white font-semibold hover:bg-[#487dd8] transition"
+                  >
+                    {connector.name}
+                  </button>
+                ))}
+              </div>
+            </Dialog.Content>
+          </Dialog.Portal>
+        </Dialog.Root>
       </div>
     </header>
   );
