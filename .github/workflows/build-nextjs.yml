@@ -1,4 +1,4 @@
-name: Build Next.js Frontend
+name: Build Frontend
 
 on:
   push:
@@ -22,5 +22,5 @@ jobs:
       - name: Install dependencies
         run: npm install --leagcy-peer-deps
 
-      - name: Build Next.js app
+      - name: Build app
         run: npm run build
