@@ -1,4 +1,4 @@
-[
+export const ABI = [
     {
       "type": "function",
       "name": "pause",
@@ -551,4 +551,4 @@
         }
       ]
     }
-  ]
+  ] as const;
