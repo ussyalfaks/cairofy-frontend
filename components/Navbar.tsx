@@ -26,6 +26,7 @@ const Navbar = () => {
     setIsDialogOpen(false);
   };
 
+
   return (
     <header className="fixed top-0 left-0 w-full bg-[#0F0F0]/80 backdrop-blur-md z-50 border-b border-[#333333]">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -175,8 +176,15 @@ const Navbar = () => {
                   <button
                     key={connector.id}
                     onClick={() => handleConnect(connector)}
-                    className="w-full py-2 rounded-md bg-[#5C94FF] text-white font-semibold hover:bg-[#487dd8] transition"
+                    className="w-full py-2 rounded-md bg-[#5C94FF] text-white text-center font-semibold hover:bg-[#487dd8] transition flex items-center justify-center"
                   >
+                    <img 
+                    src={typeof connector.icon === 'string' 
+                      ? connector.icon 
+                      : connector.icon?.dark}
+                    alt={connector.name}
+                    className="w-6 h-6 mr-2 self-center"
+                    />
                     {connector.name}
                   </button>
                 ))}
