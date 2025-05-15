@@ -1,5 +1,6 @@
 "use client";
 import { useState, useRef, ChangeEvent } from 'react';
+import { uploadToIPFS } from '@/lib/ipfs';
 import Image from 'next/image';
 import { 
   UploadCloud, 
@@ -46,6 +47,8 @@ const Upload = () => {
   const [coverImage, setCoverImage] = useState<File | null>(null);
   const [coverImagePreview, setCoverImagePreview] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [audioIPFS, setAudioIPFS] = useState<{ ipfs: string; gateway: string } | null>(null);
+  const [coverIPFS, setCoverIPFS] = useState<{ ipfs: string; gateway: string } | null>(null);
   
   const audioInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -106,7 +109,7 @@ const Upload = () => {
     }
   };
 
-  const onSubmit = ()=> {
+  const onSubmit = async () => {
     if (!audioFile) {
       toast.error("Please upload an audio file");
       return;
@@ -118,11 +121,43 @@ const Upload = () => {
     }
     
     setIsUploading(true);
-    // Simulated upload
-    setTimeout(() => {
+    
+    try {
+      // Upload audio file to IPFS
+      const audioResult = await uploadToIPFS(audioFile);
+      if (!audioResult) {
+        toast.error("Failed to upload audio file to IPFS");
+        setIsUploading(false);
+        return;
+      }
+      setAudioIPFS({
+        ipfs: audioResult.ipfsUrl,
+        gateway: audioResult.gatewayUrl
+      });
+
+      // Upload cover image to IPFS
+      const imageResult = await uploadToIPFS(coverImage);
+      if (!imageResult) {
+        toast.error("Failed to upload cover image to IPFS");
+        setIsUploading(false);
+        return;
+      }
+      setCoverIPFS({
+        ipfs: imageResult.ipfsUrl,
+        gateway: imageResult.gatewayUrl
+      });
+
+      // Here you would typically call your smart contract with the IPFS URLs
+      console.log('Audio IPFS URL:', audioResult.ipfsUrl);
+      console.log('Cover IPFS URL:', imageResult.ipfsUrl);
+      
+      toast.success("Files uploaded to IPFS successfully!");
+    } catch (error) {
+      console.error('Error during upload:', error);
+      toast.error("Failed to upload files");
+    } finally {
       setIsUploading(false);
-      toast.success("NFT minted successfully!");
-    }, 2000);
+    }
   };
 
   return (
@@ -188,6 +223,54 @@ const Upload = () => {
                   />
                 </div>
               </div>
+
+              {(audioIPFS || coverIPFS) && (
+                <div className="mt-4 p-4 bg-purple-500/10 rounded-lg space-y-2">
+                  <h3 className="text-sm font-medium text-purple-500">IPFS Upload Status</h3>
+                  {audioIPFS && (
+                    <div className="text-xs text-gray-400 space-y-1">
+                      <div>
+                        <span className="font-medium">Audio IPFS:</span>
+                        <span className="ml-2 text-purple-500 break-all">
+                          {audioIPFS.ipfs}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="font-medium">Gateway URL:</span>
+                        <a 
+                          href={audioIPFS.gateway} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="ml-2 text-purple-500 hover:underline break-all"
+                        >
+                          {audioIPFS.gateway}
+                        </a>
+                      </div>
+                    </div>
+                  )}
+                  {coverIPFS && (
+                    <div className="text-xs text-gray-400 space-y-1">
+                      <div>
+                        <span className="font-medium">Cover IPFS:</span>
+                        <span className="ml-2 text-purple-500 break-all">
+                          {coverIPFS.ipfs}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="font-medium">Gateway URL:</span>
+                        <a 
+                          href={coverIPFS.gateway} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="ml-2 text-purple-500 hover:underline break-all"
+                        >
+                          {coverIPFS.gateway}
+                        </a>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-6">
                 {/* Cover Image Upload */}
@@ -346,7 +429,7 @@ const Upload = () => {
                 {isUploading ? (
                   <div className="flex items-center gap-2">
                     <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                    Minting NFT...
+                    Uploading to IPFS...
                   </div>
                 ) : (
                   "Upload Track"
