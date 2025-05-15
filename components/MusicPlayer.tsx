@@ -17,14 +17,14 @@ interface MusicPlayerProps {
   songTitle?: string;
   artist?: string;
   coverImage?: string;
-  audioSrc?: string;
+  audioSrc?: string | null;
 }
 
 const MusicPlayer = ({
   songTitle = "Not Playing",
   artist = "No Artist",
   coverImage = "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8bXVzaWMlMjBwbGF5ZXJ8ZW58MHx8MHx8fDA%3D",
-  audioSrc = "",
+  audioSrc = null,
 }: MusicPlayerProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -208,7 +208,7 @@ const MusicPlayer = ({
       </div>
 
       {/* Audio Element */}
-      <audio ref={audioRef} src={audioSrc} preload="metadata" />
+      {audioSrc && <audio ref={audioRef} src={audioSrc} preload="metadata" />}
     </div>
   );
 };
