@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Heart, Clock, Music } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import Navbar from '@/components/Navbar';
+import Navbar from '@/components/layouts/Navbar';
 import SongCard from '@/components/SongCard';
 
 // Sample user data - in a real app, this would come from an API

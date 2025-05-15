@@ -43,7 +43,7 @@ const SongCard = ({
 
   return (
     <div className={cn(
-      "group card-glow rounded-xl overflow-hidden flex flex-col",
+      "group card-glow border border-white/10 rounded-xl overflow-hidden flex flex-col",
       className
     )}>
       <div className="relative overflow-hidden">
@@ -58,7 +58,7 @@ const SongCard = ({
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
           <button
             onClick={handlePlayClick}
-            className="bg-[#0EA5E9]/90 rounded-full p-3 transform translate-y-4 group-hover:translate-y-0 transition-all duration-300 hover:scale-110"
+            className="bg-primary rounded-full p-3 transform translate-y-4 group-hover:translate-y-0 transition-all duration-300 hover:scale-110"
           >
             {isPlaying ? (
               <Pause className="h-8 w-8 text-white" />
@@ -98,7 +98,7 @@ const SongCard = ({
             {isForSale && !isPurchased && (
               <Button
                 size="sm"
-                className="ml-2 bg-[#10B981]/90 hover:bg-[#10B981] text-white text-xs px-2 py-1 rounded flex items-center"
+                className="ml-2 bg-primary text-white text-xs px-2 py-1 rounded flex items-center"
               >
                 <ShoppingCart className="h-3 w-3 mr-1" />
                 <span>{price} STARK</span>

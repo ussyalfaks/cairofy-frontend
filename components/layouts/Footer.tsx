@@ -3,13 +3,13 @@ import { Disc3, Twitter, Instagram, MessageCircle, Github } from 'lucide-react';
 
 const Footer = () => {
   return (
-    <footer className="bg-[#1A1A1A] border-t border-[#333333] py-12">
+    <footer className="bg-secondary py-12">
       <div className="container mx-auto px-4 md:px-8">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           <div className="md:col-span-1">
             <Link href="/" className="flex items-center mb-4">
-              <Disc3 className="h-8 w-8 text-purple-600 mr-2" />
-              <span className="text-xl text-purple-600 font-bold">Cairofy</span>
+              <Disc3 className="h-8 w-8 text-primary mr-2" />
+              <span className="text-xl text-primary font-bold">Cairofy</span>
             </Link>
             <p className="text-white/70 text-sm mb-4">
               Stream. Own. Earn. The next generation of music ownership 
