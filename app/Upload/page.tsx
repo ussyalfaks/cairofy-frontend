@@ -6,6 +6,7 @@ import {
   Music,
   Image as ImageIcon,
   Info,
+  X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -72,6 +73,13 @@ const Upload = () => {
       }
       setAudioFile(file);
     }
+    // Reset the input value so the same file can be selected again after removal
+    if (audioInputRef.current) audioInputRef.current.value = '';
+  };
+
+  const removeAudioFile = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent triggering the parent div's onClick
+    setAudioFile(null);
   };
 
   const handleCoverImageUpload = (e: ChangeEvent<HTMLInputElement>) => {
@@ -84,6 +92,17 @@ const Upload = () => {
       setCoverImage(file);
       const url = URL.createObjectURL(file);
       setCoverImagePreview(url);
+    }
+    // Reset the input value so the same file can be selected again after removal
+    if (imageInputRef.current) imageInputRef.current.value = '';
+  };
+
+  const removeCoverImage = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent triggering the parent div's onClick
+    setCoverImage(null);
+    if (coverImagePreview) {
+      URL.revokeObjectURL(coverImagePreview);
+      setCoverImagePreview(null);
     }
   };
 
@@ -130,14 +149,36 @@ const Upload = () => {
                   className="flex flex-col items-center justify-center py-8 cursor-pointer hover:bg-white/5 rounded-lg transition-colors"
                   onClick={() => audioInputRef.current?.click()}
                 >
-                  <UploadCloud className="h-8 w-8 text-gray-400 mb-2" />
-                  <p className="text-sm text-gray-400">
-                    Drag and drop your audio file here, or {" "}
-                    <span className="text-purple-500">browse</span>
-                  </p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Supported formats: MP3, WAV (max 50MB)
-                  </p>
+                  {audioFile ? (
+                    <>
+                      <div className="relative w-full flex justify-end">
+                        <button
+                          onClick={removeAudioFile}
+                          className="absolute -top-4 -right-4 p-1 rounded-full bg-gray-800 hover:bg-gray-700 transition-colors"
+                        >
+                          <X className="h-4 w-4 text-gray-400" />
+                        </button>
+                      </div>
+                      <Music className="h-8 w-8 text-purple-500 mb-2" />
+                      <p className="text-sm text-purple-500 font-medium">
+                        {audioFile.name}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {(audioFile.size / (1024 * 1024)).toFixed(2)}MB
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <UploadCloud className="h-8 w-8 text-gray-400 mb-2" />
+                      <p className="text-sm text-gray-400">
+                        Drag and drop your audio file here, or {" "}
+                        <span className="text-purple-500">browse</span>
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Supported formats: MP3, WAV (max 50MB)
+                      </p>
+                    </>
+                  )}
                   <input
                     ref={audioInputRef}
                     type="file"
@@ -161,14 +202,21 @@ const Upload = () => {
                     onClick={() => imageInputRef.current?.click()}
                   >
                     {coverImagePreview ? (
-                      <Image
-                        src={coverImagePreview}
-                        alt="Cover"
-                        width={500}
-                            height={500}
-
-                        className="w-full h-full object-cover rounded-lg"
-                      />
+                      <div className="relative w-full h-full">
+                        <button
+                          onClick={removeCoverImage}
+                          className="absolute -top-2 -right-2 p-1 rounded-full bg-gray-800 hover:bg-gray-700 transition-colors z-10"
+                        >
+                          <X className="h-4 w-4 text-gray-400" />
+                        </button>
+                        <Image
+                          src={coverImagePreview}
+                          alt="Cover"
+                          width={500}
+                          height={500}
+                          className="w-full h-full object-cover rounded-lg"
+                        />
+                      </div>
                     ) : (
                       <>
                         <ImageIcon className="h-8 w-8 text-gray-400 mb-2" />
