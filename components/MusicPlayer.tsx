@@ -147,7 +147,7 @@ const MusicPlayer = ({
             </button>
             <button
               onClick={togglePlay}
-              className="bg-[#0EA5E9] rounded-full p-2 hover:bg-[#0EA5E9]/90 hover:scale-105 transition-all"
+              className="bg-primary rounded-full p-2 hover:bg-primary/90 hover:scale-105 transition-all"
             >
               {isPlaying ? (
                 <Pause className="h-5 w-5 text-white" />

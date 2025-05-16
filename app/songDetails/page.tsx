@@ -28,7 +28,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from '@/components/ui/input';
-import Navbar from '@/components/Navbar';
+import Navbar from '@/components/layouts/Navbar';
 // import Footer from '@/components/Footer';
 import SongCard from '@/components/SongCard';
 import MusicPlayer from '@/components/MusicPlayer';

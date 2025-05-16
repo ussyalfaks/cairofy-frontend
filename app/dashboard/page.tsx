@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import Navbar from "@/components/Navbar";
+import Navbar from "@/components/layouts/Navbar";
 import MusicPlayer from "@/components/MusicPlayer";
 import SongCard from "@/components/SongCard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
