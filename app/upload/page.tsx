@@ -7,7 +7,9 @@ import {
   Image as ImageIcon,
   Info,
   X,
+  Loader2,
 } from 'lucide-react';
+import { uploadToIPFS, IPFSResponse } from '@/lib/ipfs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -35,16 +37,24 @@ import Footer from '@/components/layouts/Footer';
 // Form schema
 const formSchema = z.object({
   title: z.string().min(2, { message: "Title must be at least 2 characters." }),
-  description: z.string().min(10, { message: "Description must be at least 10 characters." }),
+  // description: z.string().min(10, { message: "Description must be at least 10 characters." }),
   genre: z.string().min(1, { message: "Please select a genre." }),
   price: z.coerce.number().min(0.1, { message: "Price must be at least 0.1 ETH." }),
 });
+
+interface UploadResult {
+  audioIpfs: IPFSResponse | null;
+  coverIpfs: IPFSResponse | null;
+  metadataIpfs: IPFSResponse | null;
+}
 
 const Upload = () => {
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [coverImage, setCoverImage] = useState<File | null>(null);
   const [coverImagePreview, setCoverImagePreview] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadResult, setUploadResult] = useState<UploadResult | null>(null);
+  const [uploadStep, setUploadStep] = useState<string>('');
   
   const audioInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -53,7 +63,7 @@ const Upload = () => {
     resolver: zodResolver(formSchema),
     defaultValues: {
       title: "",
-      description: "",
+      // description: "",
       genre: "",
       price: 0.1,
     },
@@ -104,7 +114,67 @@ const Upload = () => {
     }
   };
 
-  const onSubmit = ()=> {
+  const createMetadataFile = async (audioIpfs: IPFSResponse, coverIpfs: IPFSResponse, formData: z.infer<typeof formSchema>): Promise<File> => {
+    const metadata = {
+      name: formData.title,
+      // description: formData.description,
+      image: coverIpfs.ipfsUrl,
+      animation_url: audioIpfs.ipfsUrl,
+      attributes: [
+        {
+          trait_type: "Genre",
+          value: formData.genre
+        },
+        {
+          trait_type: "Price",
+          value: formData.price
+        },
+        {
+          display_type: "date", 
+          trait_type: "Created", 
+          value: Math.floor(Date.now() / 1000)
+        }
+      ]
+    };
+
+    const metadataBlob = new Blob([JSON.stringify(metadata, null, 2)], { type: 'application/json' });
+    return new File([metadataBlob], 'metadata.json', { type: 'application/json' });
+  };
+
+  const uploadFiles = async (formData: z.infer<typeof formSchema>): Promise<UploadResult> => {
+    try {
+      if (!audioFile || !coverImage) {
+        throw new Error('Audio file and cover image are required');
+      }
+
+      // Step 1: Upload audio file
+      setUploadStep('Uploading audio file to IPFS...');
+      const audioIpfs = await uploadToIPFS(audioFile);
+      if (!audioIpfs) throw new Error('Failed to upload audio file to IPFS');
+      
+      // Step 2: Upload cover image
+      setUploadStep('Uploading cover image to IPFS...');
+      const coverIpfs = await uploadToIPFS(coverImage);
+      if (!coverIpfs) throw new Error('Failed to upload cover image to IPFS');
+      
+      // Step 3: Create and upload metadata
+      setUploadStep('Creating and uploading metadata...');
+      const metadataFile = await createMetadataFile(audioIpfs, coverIpfs, formData);
+      const metadataIpfs = await uploadToIPFS(metadataFile);
+      if (!metadataIpfs) throw new Error('Failed to upload metadata to IPFS');
+      
+      return {
+        audioIpfs,
+        coverIpfs,
+        metadataIpfs
+      };
+    } catch (error) {
+      console.error('Error during upload process:', error);
+      throw error;
+    }
+  };
+
+  const onSubmit = async (formData: z.infer<typeof formSchema>) => {
     if (!audioFile) {
       toast.error("Please upload an audio file");
       return;
@@ -115,12 +185,31 @@ const Upload = () => {
       return;
     }
     
-    setIsUploading(true);
-    // Simulated upload
-    setTimeout(() => {
+    try {
+      setIsUploading(true);
+      const result = await uploadFiles(formData);
+      setUploadResult(result);
+      
+      // Show success message with IPFS hash
+      toast.success(
+        <div className="space-y-2">
+          <p>Files uploaded successfully to IPFS!</p>
+          <p className="text-xs font-mono break-all">Audio: {result.audioIpfs?.hash}</p>
+          <p className="text-xs font-mono break-all">Cover: {result.coverIpfs?.hash}</p>
+          <p className="text-xs font-mono break-all">Metadata: {result.metadataIpfs?.hash}</p>
+        </div>
+      );
+      
+      // Here you would typically call the smart contract to register the song
+      // using the metadataIpfs.hash
+      
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      toast.error(`Upload failed: ${errorMessage}`);
+    } finally {
       setIsUploading(false);
-      toast.success("NFT minted successfully!");
-    }, 2000);
+      setUploadStep('');
+    }
   };
 
   return (
@@ -333,18 +422,38 @@ const Upload = () => {
 
               <Button 
                 type="submit" 
-                className="w-full bg-primary hover:bg-primary/90 text-white py-6 cursor-pointer text-lg font-medium rounded-xl transition-all duration-300"
+                className="w-full bg-primary hover:bg-primary/90 text-white cursor-pointer py-6 text-lg font-medium rounded-xl transition-all duration-300"
                 disabled={isUploading}
               >
                 {isUploading ? (
                   <div className="flex items-center gap-3">
-                    <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                    UPloading song...
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    {uploadStep || 'Processing...'}
                   </div>
                 ) : (
                   "Upload Song"
                 )}
               </Button>
+              
+              {uploadResult && (
+                <div className="mt-6 p-4 bg-white/5 rounded-lg border border-white/10">
+                  <h3 className="text-white font-medium mb-2">IPFS Upload Results</h3>
+                  <div className="space-y-2 text-sm">
+                    <div>
+                      <p className="text-gray-400">Audio File:</p>
+                      <p className="text-primary font-mono text-xs truncate">{uploadResult.audioIpfs?.hash}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-400">Cover Image:</p>
+                      <p className="text-primary font-mono text-xs truncate">{uploadResult.coverIpfs?.hash}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-400">Metadata:</p>
+                      <p className="text-primary font-mono text-xs truncate">{uploadResult.metadataIpfs?.hash}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </form>
           </Form>
         </div>
