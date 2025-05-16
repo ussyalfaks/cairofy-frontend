@@ -34,6 +34,13 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const { connectors } = useInjectedConnectors({
+    recommended: [argent(), braavos()],
+
+    includeRecommended: "onlyIfNoConnectors",
+    order: "alphabetical",
+  });
+
   return (
     <html lang="en">
       <body
@@ -46,3 +53,4 @@ export default function RootLayout({
     </html>
   );
 }
+
