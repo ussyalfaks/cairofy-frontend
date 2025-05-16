@@ -1,5 +1,5 @@
 "use client";
-import { useState, useRef, ChangeEvent } from 'react';
+import { useState, useRef, ChangeEvent, useEffect } from 'react';
 import Image from 'next/image';
 import { 
   UploadCloud, 
@@ -8,10 +8,15 @@ import {
   Info,
   X,
   Loader2,
+  AlertCircle,
+  CheckCircle2,
 } from 'lucide-react';
 import { uploadToIPFS, IPFSResponse } from '@/lib/ipfs';
+import { useAccount, useContract, useSendTransaction, useTransactionReceipt } from '@starknet-react/core';
+import { CAIROFY_CONTRACT_ADDRESS, CAIROFY_ABI } from '@/constants/contrat';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { shortString } from 'starknet';
 
 import {
   Select,
@@ -42,10 +47,12 @@ const formSchema = z.object({
   price: z.coerce.number().min(0.1, { message: "Price must be at least 0.1 ETH." }),
 });
 
+
 interface UploadResult {
   audioIpfs: IPFSResponse | null;
   coverIpfs: IPFSResponse | null;
   metadataIpfs: IPFSResponse | null;
+  transactionHash?: string;
 }
 
 const Upload = () => {
@@ -55,6 +62,44 @@ const Upload = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadResult, setUploadResult] = useState<UploadResult | null>(null);
   const [uploadStep, setUploadStep] = useState<string>('');
+  const [transactionHash, setTransactionHash] = useState<string>('');
+  const [transactionConfirmed, setTransactionConfirmed] = useState(false);
+  
+  // Get wallet connection status
+  const { address } = useAccount();
+  
+  // Setup contract
+  const { contract } = useContract({
+    address: CAIROFY_CONTRACT_ADDRESS,
+    abi: CAIROFY_ABI,
+  });
+  
+  // Initialize the send transaction hook with empty calls array
+  const { sendAsync, isPending: isTransactionPending } = useSendTransaction({
+    calls: [], // Start with empty calls, we'll provide them when sending the transaction
+  });
+  
+  // Get transaction receipt to monitor transaction status
+  const { data: receipt, isLoading: isWaitingForReceipt } = useTransactionReceipt({
+    hash: transactionHash,
+    watch: true,
+  });
+  
+  // Effect to handle successful transaction receipt
+  useEffect(() => {
+    if (receipt && transactionHash && !transactionConfirmed) {
+      // Transaction is confirmed
+      setTransactionConfirmed(true);
+      setUploadStep('Transaction confirmed!');
+      
+      toast.success(
+        <div className="space-y-2">
+          <p>Song registered successfully on the blockchain!</p>
+          <p className="text-xs font-mono break-all">Transaction: {transactionHash}</p>
+        </div>
+      );
+    }
+  }, [receipt, transactionHash, transactionConfirmed]);
   
   const audioInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -174,7 +219,106 @@ const Upload = () => {
     }
   };
 
+  const registerSongOnContract = async (formData: z.infer<typeof formSchema>, result: UploadResult) => {
+    try {
+      if (!address) {
+        throw new Error('Wallet not connected');
+      }
+      
+      if (!result.audioIpfs || !result.coverIpfs) {
+        throw new Error('Missing IPFS data');
+      }
+      
+      if (!contract) {
+        throw new Error('Contract not initialized');
+      }
+      
+      setUploadStep('Preparing transaction...');
+      
+      // Convert title to felt (short string) for Cairo contract
+      const nameAsFelt = shortString.encodeShortString(formData.title);
+      
+      // For IPFS hashes, we need to use a different approach
+      // Instead of passing the hash directly, we'll create a custom call
+      // with the correct parameter types
+      
+      // Convert price to u256 format (low, high parts)
+      const priceInWei = Math.floor(formData.price * 10**18);
+      
+      // Create a uint256 object for the price
+      const price = {
+        low: priceInWei.toString(),
+        high: '0'
+      };
+      
+      // Prepare the register_song transaction call
+     
+      const calls = contract.populate('register_song', [
+          nameAsFelt,              // name as string (will be converted to felt)
+          result.audioIpfs.hash,        // ipfs_hash as string
+          result.coverIpfs.hash,        // preview_ipfs_hash as string
+          price                         // price as uint256 object
+        ]);
+      
+      if (!calls) {
+        throw new Error('Failed to create contract call');
+      }
+      
+      setUploadStep('Waiting for wallet confirmation...');
+      
+      // Show toast that we're submitting to contract
+      toast.loading("Please confirm the transaction in your wallet...", {
+        id: "transaction-pending",
+      });
+      
+      // Execute the transaction
+      console.log("Sending transaction with calls:", calls);
+      const response = await sendAsync([calls]);
+      
+      console.log("Transaction response:", response);
+      
+      // Store the transaction hash to monitor its status
+      if (response.transaction_hash) {
+        setTransactionHash(response.transaction_hash);
+        setUploadStep('Transaction submitted!');
+        
+        // Stop the loading state on the button
+        setIsUploading(false);
+        
+        toast.success(`Transaction submitted! You can view the status below.`, {
+          id: "transaction-pending",
+        });
+        
+        return response.transaction_hash;
+      } else {
+        throw new Error("No transaction hash returned");
+      }
+    } catch (error) {
+      console.error('Error registering song on contract:', error);
+      let errorMessage = 'Unknown contract error';
+      
+      if (error instanceof Error) {
+        if (error.message.includes("User rejected")) {
+          errorMessage = "Transaction was rejected in the wallet";
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      toast.error(`Failed to register song: ${errorMessage}`, {
+        id: "transaction-pending",
+      });
+      
+      throw new Error(`Failed to register song on blockchain: ${errorMessage}`);
+    }
+  };
+
   const onSubmit = async (formData: z.infer<typeof formSchema>) => {
+    if (!address) {
+      toast.error("Please connect your wallet first");
+      return;
+    }
+    
     if (!audioFile) {
       toast.error("Please upload an audio file");
       return;
@@ -187,26 +331,24 @@ const Upload = () => {
     
     try {
       setIsUploading(true);
+      setTransactionConfirmed(false);
+      
+      // Step 1: Upload files to IPFS
       const result = await uploadFiles(formData);
       setUploadResult(result);
       
-      // Show success message with IPFS hash
-      toast.success(
-        <div className="space-y-2">
-          <p>Files uploaded successfully to IPFS!</p>
-          <p className="text-xs font-mono break-all">Audio: {result.audioIpfs?.hash}</p>
-          <p className="text-xs font-mono break-all">Cover: {result.coverIpfs?.hash}</p>
-          <p className="text-xs font-mono break-all">Metadata: {result.metadataIpfs?.hash}</p>
-        </div>
-      );
+      // Step 2: Register song on blockchain
+      const txHash = await registerSongOnContract(formData, result);
       
-      // Here you would typically call the smart contract to register the song
-      // using the metadataIpfs.hash
+      // Update result with transaction info
+      setUploadResult(prev => prev ? {
+        ...prev,
+        transactionHash: txHash
+      } : null);
       
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       toast.error(`Upload failed: ${errorMessage}`);
-    } finally {
       setIsUploading(false);
       setUploadStep('');
     }
@@ -420,16 +562,29 @@ const Upload = () => {
                 </div>
               </div>
 
+              {!address ? (
+                <div className="mb-6 p-4 bg-amber-500/10 border border-amber-500/30 rounded-lg flex items-center gap-3">
+                  <AlertCircle className="h-5 w-5 text-amber-500" />
+                  <p className="text-amber-500 text-sm">Please connect your wallet to upload a song</p>
+                </div>
+              ) : null}
+              
               <Button 
                 type="submit" 
                 className="w-full bg-primary hover:bg-primary/90 text-white cursor-pointer py-6 text-lg font-medium rounded-xl transition-all duration-300"
-                disabled={isUploading}
+                disabled={isUploading || !address || isWaitingForReceipt || isTransactionPending}
               >
-                {isUploading ? (
+                {isUploading || isWaitingForReceipt || isTransactionPending ? (
                   <div className="flex items-center gap-3">
-                    <Loader2 className="h-5 w-5 animate-spin" />
+                    {transactionConfirmed ? (
+                      <CheckCircle2 className="h-5 w-5 text-green-500" />
+                    ) : (
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    )}
                     {uploadStep || 'Processing...'}
                   </div>
+                ) : !address ? (
+                  "Connect Wallet to Upload"
                 ) : (
                   "Upload Song"
                 )}
@@ -437,7 +592,7 @@ const Upload = () => {
               
               {uploadResult && (
                 <div className="mt-6 p-4 bg-white/5 rounded-lg border border-white/10">
-                  <h3 className="text-white font-medium mb-2">IPFS Upload Results</h3>
+                  <h3 className="text-white font-medium mb-2">Upload Results</h3>
                   <div className="space-y-2 text-sm">
                     <div>
                       <p className="text-gray-400">Audio File:</p>
@@ -451,6 +606,17 @@ const Upload = () => {
                       <p className="text-gray-400">Metadata:</p>
                       <p className="text-primary font-mono text-xs truncate">{uploadResult.metadataIpfs?.hash}</p>
                     </div>
+                    {uploadResult.transactionHash && (
+                      <div>
+                        <p className="text-gray-400">Transaction Hash:</p>
+                        <p className="text-primary font-mono text-xs truncate">{uploadResult.transactionHash}</p>
+                        {transactionConfirmed && (
+                          <p className="text-green-500 text-xs flex items-center gap-1 mt-1">
+                            <CheckCircle2 className="h-3 w-3" /> Confirmed
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
