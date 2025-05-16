@@ -6,10 +6,10 @@ import {
   Music,
   Image as ImageIcon,
   Info,
+  X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 
 import {
   Select,
@@ -74,6 +74,14 @@ const Upload = () => {
     }
   };
 
+  const removeAudioFile = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setAudioFile(null);
+    if (audioInputRef.current) {
+      audioInputRef.current.value = '';
+    }
+  };
+
   const handleCoverImageUpload = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -84,6 +92,15 @@ const Upload = () => {
       setCoverImage(file);
       const url = URL.createObjectURL(file);
       setCoverImagePreview(url);
+    }
+  };
+
+  const removeCoverImage = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCoverImage(null);
+    setCoverImagePreview(null);
+    if (imageInputRef.current) {
+      imageInputRef.current.value = '';
     }
   };
 
@@ -194,38 +211,10 @@ const Upload = () => {
                   />
                 </div>
 
-                <FormField
-                  control={form.control}
-                  name="description"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormControl>
-                        <Textarea
-                          placeholder="Tell us about your song..."
-                          className="bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:border-primary/50 h-32 resize-none"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                
               </div>
 
-              {/* NFT Info */}
-              <div className="backdrop-blur-[20px] bg-primary/5 border border-primary/10 rounded-xl p-6">
-                <div className="flex items-start gap-4">
-                  <Info className="h-6 w-6 text-primary flex-shrink-0 mt-0.5" />
-                  <div className="space-y-2">
-                    <h3 className="text-base font-medium text-white">NFT Minting Details</h3>
-                    <p className="text-sm text-gray-400 leading-relaxed">
-                      Your song will be minted as an NFT on the Starknet blockchain. You&apos;ll earn rewards when users
-                      listen to your music and receive royalties when your NFT is resold. The minting process is gasless
-                      and takes only a few moments to complete.
-                    </p>
-                  </div>
-                </div>
-              </div>
+              
 
               {/* Media Upload Section - Combined song and cover art */}
               <div className="backdrop-blur-[20px] bg-white/2 border border-white/10 rounded-xl p-8 hover:border-white/20 transition-all duration-300">
@@ -243,17 +232,39 @@ const Upload = () => {
                     </div>
                     
                     <div 
-                      className="flex flex-col items-center justify-center aspect-square  py-12 cursor-pointer hover:bg-white/5 rounded-lg transition-colors border-2 border-dashed border-white/10 hover:border-primary/50"
+                      className="flex flex-col items-center justify-center aspect-square py-12 cursor-pointer hover:bg-white/5 rounded-lg transition-colors border-2 border-dashed border-white/10 hover:border-primary/50 relative"
                       onClick={() => audioInputRef.current?.click()}
                     >
-                      <UploadCloud className="h-12 w-12 text-primary mb-4" />
-                      <p className="text-base text-gray-300">
-                        Drag and drop your audio file here, or {" "}
-                        <span className="text-primary font-medium">browse</span>
-                      </p>
-                      <p className="text-sm text-gray-500 mt-2">
-                        Supported formats: MP3, WAV (max 50MB)
-                      </p>
+                      {audioFile ? (
+                        <>
+                          <div className="absolute top-3 right-3 z-10">
+                            <button 
+                              onClick={removeAudioFile}
+                              className="bg-black/40 hover:bg-black/60 p-1.5 rounded-full transition-colors"
+                            >
+                              <X className="h-4 w-4 text-white" />
+                            </button>
+                          </div>
+                          <Music className="h-12 w-12 text-primary mb-4" />
+                          <p className="text-base text-gray-300 text-center max-w-[90%] truncate">
+                            {audioFile.name}
+                          </p>
+                          <p className="text-sm text-gray-500 mt-2">
+                            {(audioFile.size / (1024 * 1024)).toFixed(2)} MB
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <UploadCloud className="h-12 w-12 text-primary mb-4" />
+                          <p className="text-base text-gray-300">
+                            Drag and drop your audio file here, or {" "}
+                            <span className="text-primary font-medium">browse</span>
+                          </p>
+                          <p className="text-sm text-gray-500 mt-2">
+                            Supported formats: MP3, WAV (max 50MB)
+                          </p>
+                        </>
+                      )}
                       <input
                         ref={audioInputRef}
                         type="file"
@@ -276,13 +287,28 @@ const Upload = () => {
                       onClick={() => imageInputRef.current?.click()}
                     >
                       {coverImagePreview ? (
-                        <Image
-                          src={coverImagePreview}
-                          alt="Cover"
-                          width={500}
-                          height={500}
-                          className="w-full h-full object-cover"
-                        />
+                        <>
+                          <div className="absolute top-3 right-3 z-10">
+                            <button 
+                              onClick={removeCoverImage}
+                              className="bg-black/40 hover:bg-black/60 p-1.5 rounded-full transition-colors"
+                            >
+                              <X className="h-4 w-4 text-white" />
+                            </button>
+                          </div>
+                          <Image
+                            src={coverImagePreview}
+                            alt="Cover"
+                            width={500}
+                            height={500}
+                            className="w-full h-full object-cover"
+                          />
+                          {coverImage && (
+                            <div className="absolute bottom-0 left-0 right-0 bg-black/60 py-2 px-3">
+                              <p className="text-xs text-white truncate">{coverImage.name}</p>
+                            </div>
+                          )}
+                        </>
                       ) : (
                         <>
                           <ImageIcon className="h-12 w-12 text-primary mb-4" />
@@ -307,16 +333,16 @@ const Upload = () => {
 
               <Button 
                 type="submit" 
-                className="w-full bg-primary hover:bg-primary/90 text-white py-6 text-lg font-medium rounded-xl transition-all duration-300"
+                className="w-full bg-primary hover:bg-primary/90 text-white py-6 cursor-pointer text-lg font-medium rounded-xl transition-all duration-300"
                 disabled={isUploading}
               >
                 {isUploading ? (
                   <div className="flex items-center gap-3">
                     <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                    Minting NFT...
+                    UPloading song...
                   </div>
                 ) : (
-                  "Upload & Mint NFT"
+                  "Upload Song"
                 )}
               </Button>
             </form>
