@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { motion, useInView, useAnimation, HTMLMotionProps } from "framer-motion";
@@ -13,56 +13,38 @@ import {
   Music3,
   Coins,
   CheckCircle,
+  Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Navbar from "@/components/layouts/Navbar";
 import Footer from "@/components/layouts/Footer";
 import SongCard from "@/components/SongCard";
-// import ConnectWalletModal from '@/components/ConnectWalletModal';
+import { useAccount, useContract, useSendTransaction, useReadContract } from '@starknet-react/core';
+import { CAIROFY_CONTRACT_ADDRESS, CAIROFY_ABI } from '@/constants/contrat';
+import { toast } from 'sonner';
+import { shortString } from 'starknet';
 
-// Sample featured songs data
-const featuredSongs = [
-  {
-    id: "1",
-    title: "Ethereum Dreams",
-    artist: "Block Beats",
-    coverImage:
-      "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8bXVzaWMlMjBwbGF5ZXJ8ZW58MHx8MHx8fDA%3D",
-    streamCount: 145230,
-    price: 2.5,
-    isForSale: true,
-  },
-  {
-    id: "2",
-    title: "Digital Nomad",
-    artist: "Crypto Punk",
-    coverImage:
-      "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8OHx8bXVzaWN8ZW58MHx8MHx8fDA%3D",
-    streamCount: 98450,
-    price: 1.8,
-    isForSale: true,
-  },
-  {
-    id: "3",
-    title: "Cairo Nights",
-    artist: "StarkNet Collective",
-    coverImage:
-      "https://images.unsplash.com/photo-1446057032654-9d8885db76c6?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTR8fG11c2ljfGVufDB8fDB8fHww",
-    streamCount: 217840,
-    price: 3.2,
-    isForSale: true,
-  },
-  {
-    id: "4",
-    title: "Blockchain Beats",
-    artist: "Web3 Audio",
-    coverImage:
-      "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTB8fG11c2ljfGVufDB8fDB8fHww",
-    streamCount: 76540,
-    price: 1.5,
-    isForSale: true,
-  },
-];
+// Define Song interface based on contract data structure
+interface Song {
+  id: number | bigint;
+  name: string;
+  ipfs_hash: string;
+  preview_ipfs_hash: string;
+  price: { low: string | number | bigint; high: string | number | bigint } | number | bigint;
+  owner: string;
+  for_sale: boolean;
+}
+
+// Transform interface for frontend use
+interface SongDisplay {
+  id: string;
+  title: string;
+  artist: string;
+  coverImage: string;
+  streamCount: number;
+  price: number;
+  isForSale: boolean;
+}
 
 const MotionImage = motion(Image);
 
@@ -96,6 +78,135 @@ const Page = () => {
   const forListenersInView = useInView(forListenersRef as React.RefObject<Element>, { once: true, amount: 0.2 });
 
   const controls = useAnimation();
+
+  const [featuredSongs, setFeaturedSongs] = useState<SongDisplay[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  // Get wallet connection status
+  const { address } = useAccount();
+  
+  // Setup contract
+  const { contract } = useContract({
+    address: CAIROFY_CONTRACT_ADDRESS,
+    abi: CAIROFY_ABI,
+  });
+  
+  // Initialize transaction hook
+  const { sendAsync } = useSendTransaction({
+    calls: [], // Start with empty calls, we'll provide them when sending the transaction
+  });
+  
+  // Read contract data using hook
+  const { data: contractSongs, isLoading: contractSongsLoading, error } = useReadContract({
+    functionName: 'get_all_songs',
+    args: [],
+    address: CAIROFY_CONTRACT_ADDRESS,
+    abi: CAIROFY_ABI,
+  });
+
+  // Process the songs data when it's received
+  useEffect(() => {
+    if (error) {
+      console.error("Error fetching songs:", error);
+      setFeaturedSongs([]);
+      return;
+    }
+
+    if (contractSongs && Array.isArray(contractSongs)) {
+      console.log("Home page: Songs data from contract:", contractSongs);
+      
+      try {
+        // Convert contract song data to our display format
+        const sampleImages = [
+          'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8bXVzaWMlMjBwbGF5ZXJ8ZW58MHx8MHx8fDA%3D',
+          'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8OHx8bXVzaWN8ZW58MHx8MHx8fDA%3D',
+          'https://images.unsplash.com/photo-1446057032654-9d8885db76c6?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTR8fG11c2ljfGVufDB8fDB8fHww',
+          'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTB8fG11c2ljfGVufDB8fDB8fHww',
+        ];
+        
+        const allSongs = contractSongs.map((song: any, index: number) => {
+          // Convert price from contract format (low/high) to display format
+          const priceInEth = typeof song.price === 'object' && 'low' in song.price 
+            ? Number(song.price.low) / 10**18 
+            : Number(song.price) / 10**18;
+          
+          const randomStreamCount = Math.floor(Math.random() * 500000) + 50000;
+  
+          return {
+            id: song.id.toString(),
+            title: typeof song.name === 'string' ? song.name : shortString.decodeShortString(song.name.toString()),
+            artist: `Artist ${song.id}`, // We don't have artist name in the Song struct
+            coverImage: sampleImages[index % sampleImages.length],
+            streamCount: randomStreamCount,
+            price: priceInEth,
+            isForSale: song.for_sale
+          };
+        });
+        
+        // Use only the first 4 songs (or fewer if less available)
+        setFeaturedSongs(allSongs.slice(0, 4));
+      } catch (error) {
+        console.error("Error processing songs data:", error);
+        setFeaturedSongs([]);
+      }
+    } else if (!contractSongsLoading) {
+      console.log("Home page: No songs data received");
+      setFeaturedSongs([]);
+    }
+  }, [contractSongs, contractSongsLoading, error]);
+  
+  // Function to buy a song
+  const handleBuySong = async (songId: string) => {
+    if (!address) {
+      toast.error("Please connect your wallet first");
+      return;
+    }
+    
+    if (!contract) {
+      toast.error("Contract not initialized");
+      return;
+    }
+    
+    try {
+      toast.loading("Please confirm the transaction in your wallet...", {
+        id: "buy-transaction-pending",
+      });
+      
+      // Prepare the buy_song transaction call
+      const calls = contract.populate('buy_song', [BigInt(songId)]);
+      
+      if (!calls) {
+        throw new Error('Failed to create contract call');
+      }
+      
+      // Send the transaction
+      const response = await sendAsync([calls]);
+      
+      console.log("Transaction response:", response);
+      
+      if (response.transaction_hash) {
+        toast.success(`Transaction submitted! Transaction hash: ${response.transaction_hash.substring(0, 10)}...`, {
+          id: "buy-transaction-pending",
+        });
+      }
+      
+    } catch (error) {
+      console.error('Error buying song:', error);
+      let errorMessage = 'Unknown contract error';
+      
+      if (error instanceof Error) {
+        if (error.message.includes("User rejected")) {
+          errorMessage = "Transaction was rejected in the wallet";
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      toast.error(`Failed to buy song: ${errorMessage}`, {
+        id: "buy-transaction-pending",
+      });
+    }
+  };
 
   useEffect(() => {
     const handleScroll = () => {
@@ -170,7 +281,7 @@ const Page = () => {
                 className=" flex items-center justify-center animate-pulse-glow"
                 asChild
               >
-                <Link href="/marketplace" className="text-white">
+                <Link href="/fetch" className="text-white">
                   <Play className="h-5 w-5 mr-2" />
                   Start Listening
                   <ArrowRight className="ml-2 h-4 w-4 transform group-hover:translate-x-1 transition-transform" />
@@ -181,7 +292,7 @@ const Page = () => {
                 className="flex items-center justify-center"
                 asChild
               >
-                <Link href="/upload" className="text-white">
+                <Link href="/" className="text-white">
                   <MusicIcon className="h-5 w-5 mr-2" />
                   Become an Artist
                 </Link>
@@ -326,7 +437,7 @@ const Page = () => {
           <MotionDiv className="flex justify-between items-center mb-12" variants={itemVariants}>
             <h2 className="text-3xl md:text-5xl font-bold mb-4 text-primary cal-sans">Featured Music</h2>
             <Link
-              href="/marketplace"
+              href="/fetch"
               className="text-white flex items-center transition-colors hover:text-primary"
             >
               View all
@@ -334,28 +445,40 @@ const Page = () => {
             </Link>
           </MotionDiv>
 
-          <MotionDiv 
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6"
-            variants={containerVariants}
-          >
-            {featuredSongs.map((song, index) => (
-              <MotionDiv
-                key={song.id}
-                variants={itemVariants}
-                whileHover={{ scale: 1.05 }}
-                transition={{ duration: 0.2 }}
-              >
-                <SongCard
-                  title={song.title}
-                  artist={song.artist}
-                  coverImage={song.coverImage}
-                  streamCount={song.streamCount}
-                  price={song.price}
-                  isForSale={song.isForSale}
-                />
-              </MotionDiv>
-            ))}
-          </MotionDiv>
+          {/* Loading State */}
+          {isLoading && (
+            <div className="flex items-center justify-center py-20">
+              <Loader2 className="h-10 w-10 text-primary animate-spin" />
+              <p className="ml-4 text-white text-lg">Loading songs from blockchain...</p>
+            </div>
+          )}
+
+          {!isLoading && (
+            <MotionDiv 
+              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6"
+              variants={containerVariants}
+            >
+              {featuredSongs.map((song, index) => (
+                <MotionDiv
+                  key={song.id}
+                  variants={itemVariants}
+                  whileHover={{ scale: 1.05 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <SongCard
+                    title={song.title}
+                    artist={song.artist}
+                    coverImage={song.coverImage}
+                    streamCount={song.streamCount}
+                    price={song.price}
+                    isForSale={song.isForSale}
+                    onBuy={() => handleBuySong(song.id)}
+                    songId={song.id}
+                  />
+                </MotionDiv>
+              ))}
+            </MotionDiv>
+          )}
         </MotionDiv>
       </section>
 

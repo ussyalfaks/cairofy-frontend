@@ -1,5 +1,4 @@
 'use client';
-import React, { useEffect } from 'react';
 import Button from './Button';
 import { Connector, useAccount, useConnect, useDisconnect } from '@starknet-react/core';
 import { StarknetkitConnector, useStarknetkitConnectModal } from 'starknetkit';
@@ -39,11 +38,11 @@ const ConnectWalletButton: React.FC<ConnectWalletButtonProps> = ({
     }
   }
 
-  useEffect(() => {
-    if (isSuccess && address && account) {
-      router.push('/pay-bill');
-    }
-  }, [isSuccess, address, account, router]);
+  // useEffect(() => {
+  //   if (isSuccess && address && account) {
+  //     router.push('/pay-bill');
+  //   }
+  // }, [isSuccess, address, account, router]);
 
   if (!address) {
     return (

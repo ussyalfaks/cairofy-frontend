@@ -1,6 +1,6 @@
-
 "use client";
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { 
@@ -14,7 +14,8 @@ import {
   Clock,
   Music,
   BarChart3,
-  Users2
+  Users2,
+  Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -32,30 +33,297 @@ import Navbar from '@/components/layouts/Navbar';
 // import Footer from '@/components/Footer';
 import SongCard from '@/components/SongCard';
 import MusicPlayer from '@/components/MusicPlayer';
+import { useAccount, useContract, useSendTransaction, useReadContract } from '@starknet-react/core';
+import { CAIROFY_CONTRACT_ADDRESS, CAIROFY_ABI } from '@/constants/contrat';
+import { toast } from 'sonner';
+import { shortString } from 'starknet';
 
-// Sample song details
-const songDetails = {
-  id: '1',
-  title: 'Ethereum Dreams',
-  artist: 'Block Beats',
-  artistId: 'artist-1',
-  coverImage: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8bXVzaWMlMjBwbGF5ZXJ8ZW58MHx8MHx8fDA%3D',
-  streamCount: 145230,
-  price: 2.5,
-  isForSale: true,
-  genre: 'Electronic',
-  releaseDate: '2023-09-15',
-  duration: '3:42',
-  totalListeners: 25640,
-  description: 'A futuristic electronic track inspired by the world of blockchain and decentralized technologies. Features ambient synths and driving beats that capture the innovative spirit of Ethereum.',
-  lyrics: `Verse 1:
+// IPFS gateway URLs
+const IPFS_GATEWAYS = [
+  'https://amber-voluntary-possum-989.mypinata.cloud/ipfs/',
+  'https://cloudflare-ipfs.com/ipfs/',
+  'https://ipfs.io/ipfs/',
+];
+
+// Helper function to get IPFS URL from hash
+const getIPFSUrl = (ipfsHash: string, fallbackIndex = 0): string => {
+  if (!ipfsHash) {
+    return '/images/music-placeholder.jpg';
+  }
+  
+  // Clean the hash (remove ipfs:// prefix if present)
+  const cleanHash = ipfsHash.startsWith('ipfs://') ? ipfsHash.slice(7) : ipfsHash;
+  
+  // Use the gateway at the specified index
+  return `${IPFS_GATEWAYS[fallbackIndex % IPFS_GATEWAYS.length]}${cleanHash}`;
+};
+
+// Helper function to extract text from ByteArray
+const extractByteArrayText = (byteArray: any): string => {
+  // If it's not a ByteArray-like object, return empty
+  if (!byteArray || typeof byteArray !== 'object') {
+    return '';
+  }
+  
+  try {
+    let result = '';
+    
+    // Process the data array (main content)
+    if (byteArray.data && Array.isArray(byteArray.data)) {
+      for (const chunk of byteArray.data) {
+        if (chunk) {
+          try {
+            // For felt252 values, we need to decode them
+            result += shortString.decodeShortString(chunk.toString());
+          } catch (e) {
+            // If decoding fails, try using the raw string
+            const rawChunk = chunk.toString();
+            if (rawChunk && typeof rawChunk === 'string' && rawChunk.length > 0) {
+              result += rawChunk;
+            }
+          }
+        }
+      }
+    }
+    
+    // Process any pending word
+    if (byteArray.pending_word && byteArray.pending_word_len) {
+      try {
+        // Only if it has actual content (pending_word_len > 0)
+        if (Number(byteArray.pending_word_len) > 0) {
+          result += shortString.decodeShortString(byteArray.pending_word.toString());
+        }
+      } catch (e) {
+        // If decoding fails, try using the raw string
+        const pendingWord = byteArray.pending_word.toString();
+        if (pendingWord && pendingWord.length > 0) {
+          result += pendingWord;
+        }
+      }
+    }
+    
+    return result;
+  } catch (e) {
+    console.error("Error extracting ByteArray text:", e);
+    return '';
+  }
+};
+
+// Better song name decoder
+const decodeSongName = (nameData: any): string => {
+  // Handle ByteArray format
+  const extractedName = extractByteArrayText(nameData);
+  if (extractedName && extractedName.length > 0) {
+    return extractedName;
+  }
+  
+  // Handle direct string case
+  if (typeof nameData === 'string') {
+    return nameData;
+  }
+  
+  // Try to get string representation
+  try {
+    if (nameData && typeof nameData.toString === 'function') {
+      const strValue = nameData.toString();
+      try {
+        return shortString.decodeShortString(strValue);
+      } catch {
+        return strValue;
+      }
+    }
+  } catch (e) {
+    console.error("Error decoding song name:", e);
+  }
+  
+  return "Unknown Song";
+};
+
+// Also add a function to decode IPFS hash
+const decodeIPFSHash = (hashData: any): string => {
+  // Handle ByteArray format
+  const extractedHash = extractByteArrayText(hashData);
+  if (extractedHash && extractedHash.length > 0) {
+    return extractedHash;
+  }
+  
+  // Handle direct string case
+  if (typeof hashData === 'string') {
+    return hashData;
+  }
+  
+  // Try to get string representation
+  try {
+    if (hashData && typeof hashData.toString === 'function') {
+      return hashData.toString();
+    }
+  } catch (e) {
+    console.error("Error decoding IPFS hash:", e);
+  }
+  
+  return "";
+};
+
+// Define the song interface
+interface SongDetails {
+  id: string;
+  title: string;
+  artist: string;
+  artistId: string;
+  coverImage: string;
+  streamCount: number;
+  price: number;
+  isForSale: boolean;
+  genre: string;
+  releaseDate: string;
+  duration: string;
+  totalListeners: number;
+  description: string;
+  lyrics: string;
+  similarSongs: Array<{
+    id: string;
+    title: string;
+    artist: string;
+    coverImage: string;
+    streamCount: number;
+    price: number;
+    isForSale: boolean;
+  }>;
+}
+
+const SongDetail = () => {
+  const searchParams = useSearchParams();
+  const songId = searchParams.get('id') || "1";
+  
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isLiked, setIsLiked] = useState(false);
+  const [activeTab, setActiveTab] = useState<'lyrics' | 'details'>('details');
+  const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
+  const [isListForSaleModalOpen, setIsListForSaleModalOpen] = useState(false);
+  const [salePrice, setSalePrice] = useState('');
+  const [song, setSong] = useState<SongDetails | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  // Get wallet connection status
+  const { address } = useAccount();
+  
+  // Setup contract
+  const { contract } = useContract({
+    address: CAIROFY_CONTRACT_ADDRESS,
+    abi: CAIROFY_ABI,
+  });
+  
+  // Initialize transaction hook for buying the song
+  const { sendAsync } = useSendTransaction({
+    calls: [],
+  });
+  
+  // Fetch song data from contract
+  const { data: songData, isLoading: isSongLoading, error: songError } = useReadContract({
+    functionName: 'get_song_info',
+    args: [BigInt(songId)],
+    address: CAIROFY_CONTRACT_ADDRESS,
+    abi: CAIROFY_ABI,
+  });
+  
+  // Fetch all songs for similar songs section
+  const { data: allSongs, isLoading: isAllSongsLoading } = useReadContract({
+    functionName: 'get_all_songs',
+    args: [],
+    address: CAIROFY_CONTRACT_ADDRESS,
+    abi: CAIROFY_ABI,
+  });
+  
+  // Process song data when received
+  useEffect(() => {
+    const loadSongData = async () => {
+      setIsLoading(true);
+      
+      if (songError) {
+        console.error("Error fetching song:", songError);
+        toast.error("Error loading song details from blockchain");
+        setIsLoading(false);
+        return;
+      }
+      
+      if (!songData) {
+        setIsLoading(false);
+        return;
+      }
+      
+      try {
+        console.log("Song data from contract:", songData);
+        
+        // Get actual IPFS image instead of using sample images
+        const ipfsHash = decodeIPFSHash(songData.ipfs_hash);
+        const coverImage = ipfsHash ? getIPFSUrl(ipfsHash) : '/images/music-placeholder.jpg';
+        
+        // Sample genres (keep these as they're not in the contract)
+        const genres = ['Electronic', 'Pop', 'Hip Hop', 'Rock', 'Jazz', 'Blues'];
+        
+        // Convert price from contract format to display format
+        const priceInEth = typeof songData.price === 'object' && 'low' in songData.price 
+          ? Number(songData.price.low) / 10**18 
+          : Number(songData.price) / 10**18;
+        
+        // Generate random values for fields not in the contract
+        const randomGenre = genres[Math.floor(Math.random() * genres.length)];
+        const randomStreamCount = Math.floor(Math.random() * 500000) + 50000;
+        const randomListeners = Math.floor(Math.random() * 50000) + 5000;
+        
+        // Get similar songs from all songs
+        let similarSongs: any[] = [];
+        if (allSongs && Array.isArray(allSongs) && allSongs.length > 0) {
+          // Filter out current song and get up to 3 others
+          similarSongs = allSongs
+            .filter((s: any) => s.id.toString() !== songId)
+            .slice(0, 3)
+            .map((s: any, index: number) => {
+              const similarSongPrice = typeof s.price === 'object' && 'low' in s.price 
+                ? Number(s.price.low) / 10**18 
+                : Number(s.price) / 10**18;
+              
+              // Get IPFS image for this song too
+              const similarIpfsHash = decodeIPFSHash(s.ipfs_hash);
+              const similarCoverImage = similarIpfsHash 
+                ? getIPFSUrl(similarIpfsHash) 
+                : '/images/music-placeholder.jpg';
+              
+              return {
+                id: s.id.toString(),
+                title: decodeSongName(s.name),
+                artist: `Artist ${s.id}`,
+                coverImage: similarCoverImage,
+                streamCount: Math.floor(Math.random() * 500000) + 10000,
+                price: similarSongPrice,
+                isForSale: s.for_sale
+              };
+            });
+        }
+        
+        // Create song details object
+        const songDetails: SongDetails = {
+          id: songData.id.toString(),
+          title: decodeSongName(songData.name),
+          artist: `Artist ${songData.id}`,
+          artistId: `artist-${songData.id}`,
+          coverImage: coverImage,
+          streamCount: randomStreamCount,
+          price: priceInEth,
+          isForSale: songData.for_sale,
+          genre: randomGenre,
+          releaseDate: new Date(Date.now() - Math.floor(Math.random() * 10000000000)).toISOString().split('T')[0],
+          duration: `${Math.floor(Math.random() * 3) + 2}:${Math.floor(Math.random() * 60).toString().padStart(2, '0')}`,
+          totalListeners: randomListeners,
+          description: "A futuristic electronic track inspired by the world of blockchain and decentralized technologies. Features ambient synths and driving beats that capture the innovative spirit of Web3.",
+          lyrics: `Verse 1:
 Digital frontiers expanding wide
 Code and consensus, side by side
 A new world forming, bit by bit
-The future&apos;s calling, this is it
+The future's calling, this is it
 
 Chorus:
-Ethereum dreams in the midnight code
+Blockchain dreams in the midnight code
 Building the future, breaking the mold
 Decentralized visions, setting us free
 A new reality, for you and me
@@ -65,48 +333,20 @@ Smart contracts running, trust is born
 Old systems fading, weathered and worn
 Innovation flowing through the chain
 Revolution rising once again`,
-  similarSongs: [
-    {
-      id: '3',
-      title: 'Cairo Nights',
-      artist: 'StarkNet Collective',
-      coverImage: 'https://images.unsplash.com/photo-1446057032654-9d8885db76c6?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTR8fG11c2ljfGVufDB8fDB8fHww',
-      streamCount: 217840,
-      price: 3.2,
-      isForSale: true
-    },
-    {
-      id: '6',
-      title: 'DeFi Anthem',
-      artist: 'Token Economy',
-      coverImage: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8bXVzaWMlMjBwbGF5ZXJ8ZW58MHx8MHx8fDA%3D',
-      streamCount: 287430,
-      price: 2.8,
-      isForSale: true
-    },
-    {
-      id: '2',
-      title: 'Digital Nomad',
-      artist: 'Crypto Punk',
-      coverImage: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8OHx8bXVzaWN8ZW58MHx8MHx8fDA%3D',
-      streamCount: 98450,
-      price: 1.8,
-      isForSale: true
-    }
-  ]
-};
-
-const SongDetail = () => {
-  // const { id } = useParams<{ id: string }>();
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [isLiked, setIsLiked] = useState(false);
-  const [activeTab, setActiveTab] = useState<'lyrics' | 'details'>('details');
-  const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
-  const [isListForSaleModalOpen, setIsListForSaleModalOpen] = useState(false);
-  const [salePrice, setSalePrice] = useState('');
-  
-  // In a real app, you would fetch the song data based on the ID
-  const song = songDetails;
+          similarSongs: similarSongs
+        };
+        
+        setSong(songDetails);
+      } catch (error) {
+        console.error("Error processing song data:", error);
+        toast.error("Error processing song data");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    loadSongData();
+  }, [songData, songError, songId, allSongs]);
 
   const handlePlayPause = () => {
     setIsPlaying(!isPlaying);
@@ -116,16 +356,123 @@ const SongDetail = () => {
     setIsLiked(!isLiked);
   };
 
-  const handlePurchase = () => {
-    // In a real app, this would handle the purchase transaction
-    setIsPurchaseModalOpen(false);
-    // Show success message
+  // Buy song function
+  const handlePurchase = async () => {
+    if (!address) {
+      toast.error("Please connect your wallet first");
+      setIsPurchaseModalOpen(false);
+      return;
+    }
+    
+    if (!contract || !song) {
+      toast.error("Contract not initialized or song not loaded");
+      setIsPurchaseModalOpen(false);
+      return;
+    }
+    
+    // Check if the song is for sale
+    if (!song.isForSale) {
+      toast.error("This song is not currently for sale");
+      setIsPurchaseModalOpen(false);
+      return;
+    }
+    
+    try {
+      toast.loading("Please confirm the transaction in your wallet...", {
+        id: "buy-transaction-pending",
+      });
+      
+      // Prepare the buy_song transaction call
+      const calls = contract.populate('buy_song', [BigInt(song.id)]);
+      
+      if (!calls) {
+        throw new Error('Failed to create contract call');
+      }
+      
+      // Send the transaction
+      const response = await sendAsync([calls]);
+      
+      console.log("Transaction response:", response);
+      
+      if (response.transaction_hash) {
+        toast.success(`Transaction submitted! Transaction hash: ${response.transaction_hash.substring(0, 10)}...`, {
+          id: "buy-transaction-pending",
+        });
+        setIsPurchaseModalOpen(false);
+      }
+    } catch (error) {
+      console.error('Error buying song:', error);
+      let errorMessage = 'Unknown contract error';
+      
+      if (error instanceof Error) {
+        if (error.message.includes("User rejected")) {
+          errorMessage = "Transaction was rejected in the wallet";
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      toast.error(`Failed to buy song: ${errorMessage}`, {
+        id: "buy-transaction-pending",
+      });
+      setIsPurchaseModalOpen(false);
+    }
   };
 
-  const handleListForSale = () => {
-    // In a real app, this would handle listing the NFT for sale
-    setIsListForSaleModalOpen(false);
-    // Show success message
+  // Handle song listing for sale
+  const handleListForSale = async () => {
+    if (!address) {
+      toast.error("Please connect your wallet first");
+      setIsListForSaleModalOpen(false);
+      return;
+    }
+    
+    if (!contract || !song || !salePrice) {
+      toast.error("Contract not initialized, song not loaded, or price not set");
+      setIsListForSaleModalOpen(false);
+      return;
+    }
+    
+    try {
+      toast.loading("Please confirm the transaction in your wallet...", {
+        id: "list-transaction-pending",
+      });
+      
+      // Prepare the set_song_for_sale transaction call
+      const calls = contract.populate('set_song_for_sale', [BigInt(song.id)]);
+      
+      if (!calls) {
+        throw new Error('Failed to create contract call');
+      }
+      
+      // Send the transaction
+      const response = await sendAsync([calls]);
+      
+      console.log("Transaction response:", response);
+      
+      if (response.transaction_hash) {
+        toast.success(`Song listed for sale! Transaction hash: ${response.transaction_hash.substring(0, 10)}...`, {
+          id: "list-transaction-pending",
+        });
+        setIsListForSaleModalOpen(false);
+      }
+    } catch (error) {
+      console.error('Error listing song for sale:', error);
+      let errorMessage = 'Unknown contract error';
+      
+      if (error instanceof Error) {
+        if (error.message.includes("User rejected")) {
+          errorMessage = "Transaction was rejected in the wallet";
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      toast.error(`Failed to list song: ${errorMessage}`, {
+        id: "list-transaction-pending",
+      });
+      setIsListForSaleModalOpen(false);
+    }
   };
 
   // Format date
@@ -137,8 +484,22 @@ const SongDetail = () => {
     });
   };
 
+  if (isLoading || !song) {
+    return (
+      <div className="min-h-screen bg-[#0F0F0F] flex flex-col">
+        <Navbar />
+        <div className="flex-grow flex items-center justify-center">
+          <div className="flex flex-col items-center">
+            <Loader2 className="h-10 w-10 text-primary animate-spin mb-4" />
+            <p className="text-white text-lg">Loading song details...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-[#0F0F0] flex flex-col">
+    <div className="min-h-screen bg-[#0F0F0F] flex flex-col">
       <Navbar />
       
       <main className="flex-grow pt-24 pb-32">
@@ -241,7 +602,7 @@ const SongDetail = () => {
                         <p className="text-white/70">Own this track as an NFT</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-cairo-green font-bold text-2xl">{song.price} STARK</p>
+                        <p className="text-cairo-green font-bold text-2xl">{song.price.toFixed(2)} STARK</p>
                       </div>
                     </div>
                     <Button 
@@ -338,12 +699,12 @@ const SongDetail = () => {
                     <div className="space-y-3">
                       <div className="flex justify-between">
                         <span className="text-white/70">Token ID</span>
-                        <span className="text-white">#ETH-{song.id}-DREAM</span>
+                        <span className="text-white">#ETH-{song.id}-MUSIC</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-white/70">Smart Contract</span>
                         <a href="#" className="text-[#0EA5E9] hover:underline truncate max-w-[180px]">
-                          0x72f53...38F1
+                          {CAIROFY_CONTRACT_ADDRESS.substring(0, 8)}...{CAIROFY_CONTRACT_ADDRESS.substring(CAIROFY_CONTRACT_ADDRESS.length - 4)}
                         </a>
                       </div>
                       <div className="flex justify-between">
@@ -368,22 +729,29 @@ const SongDetail = () => {
           </div>
           
           {/* Similar Songs */}
-          <div className="mb-12">
-            <h2 className="text-2xl font-bold text-white mb-6">You Might Also Like</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {song.similarSongs.map((similarSong) => (
-                <SongCard
-                  key={similarSong.id}
-                  title={similarSong.title}
-                  artist={similarSong.artist}
-                  coverImage={similarSong.coverImage}
-                  streamCount={similarSong.streamCount}
-                  price={similarSong.price}
-                  isForSale={similarSong.isForSale}
-                />
-              ))}
+          {song.similarSongs.length > 0 && (
+            <div className="mb-12">
+              <h2 className="text-2xl font-bold text-white mb-6">You Might Also Like</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {song.similarSongs.map((similarSong) => (
+                  <SongCard
+                    key={similarSong.id}
+                    title={similarSong.title}
+                    artist={similarSong.artist}
+                    coverImage={similarSong.coverImage}
+                    streamCount={similarSong.streamCount}
+                    price={similarSong.price}
+                    isForSale={similarSong.isForSale}
+                    songId={similarSong.id}
+                    onBuy={() => {
+                      // Redirect to song details page for the similar song
+                      window.location.href = `/songDetails?id=${similarSong.id}`;
+                    }}
+                  />
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </main>
       
@@ -424,7 +792,7 @@ const SongDetail = () => {
           <div className="space-y-4 py-4">
             <div className="flex justify-between">
               <span className="text-white/70">Price</span>
-              <span className="text-white font-medium">{song.price} STARK</span>
+              <span className="text-white font-medium">{song.price.toFixed(2)} STARK</span>
             </div>
             <div className="flex justify-between">
               <span className="text-white/70">Platform Fee (2.5%)</span>
@@ -468,8 +836,8 @@ const SongDetail = () => {
             <Image
               src={song.coverImage}
               alt={song.title}
-              width={500} // Ensure this is explicitly defined
-              height={500} 
+              width={500}
+              height={500}
               className="w-16 h-16 rounded-md object-cover"
             />
             <div>
@@ -489,7 +857,7 @@ const SongDetail = () => {
                   type="number"
                   value={salePrice}
                   onChange={(e) => setSalePrice(e.target.value)}
-                  className="bg-[#0F0F0] border-[#333333] text-white"
+                  className="bg-[#0F0F0F] border-[#333333] text-white"
                   placeholder="Enter price in STARK"
                   min="0.1"
                   step="0.1"

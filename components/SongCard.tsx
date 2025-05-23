@@ -15,6 +15,8 @@ interface SongCardProps {
   isPurchased?: boolean;
   isForSale?: boolean;
   onPlay?: () => void;
+  onBuy?: () => void;
+  songId?: string;
   className?: string;
 }
 
@@ -27,6 +29,8 @@ const SongCard = ({
   isPurchased = false,
   isForSale = false,
   onPlay,
+  onBuy,
+  songId,
   className,
 }: SongCardProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -99,6 +103,7 @@ const SongCard = ({
               <Button
                 size="sm"
                 className="ml-2 bg-primary text-white text-xs px-2 py-1 rounded flex items-center"
+                onClick={onBuy}
               >
                 <ShoppingCart className="h-3 w-3 mr-1" />
                 <span>{price} STARK</span>
