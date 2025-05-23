@@ -1,5 +1,5 @@
 "use client";
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { 
   ShoppingBag, 
   Search, 
@@ -8,9 +8,10 @@ import {
   SlidersHorizontal,
   ChevronDown,
   PlusCircle,
-  MinusCircle
+  MinusCircle,
+  Loader2
 } from 'lucide-react';
-// import Link from 'next/link';
+import Link from 'next/link';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
@@ -26,97 +27,252 @@ import {
 } from '@/components/ui/collapsible';
 import { Badge } from '@/components/ui/badge';
 import Navbar from '@/components/layouts/Navbar';
-// import Footer from '@/components/Footer';
 import SongCard from '@/components/SongCard';
 import MusicPlayer from '@/components/MusicPlayer';
 import Sidebar from '@/components/Sidebar';
+import { 
+  useAccount, 
+  useContract, 
+  useSendTransaction, 
+  useReadContract 
+} from '@starknet-react/core';
+import { CAIROFY_CONTRACT_ADDRESS, CAIROFY_ABI } from '@/constants/contrat';
+import { toast } from 'sonner';
+import { shortString } from 'starknet';
 
-// Sample marketplace data
-const marketplaceData = {
-  topSongs: [
-    {
-      id: '1',
-      title: 'Ethereum Dreams',
-      artist: 'Block Beats',
-      coverImage: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8bXVzaWMlMjBwbGF5ZXJ8ZW58MHx8MHx8fDA%3D',
-      streamCount: 145230,
-      price: 2.5,
-      isForSale: true,
-      genre: 'Electronic'
-    },
-    {
-      id: '2',
-      title: 'Digital Nomad',
-      artist: 'Crypto Punk',
-      coverImage: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8OHx8bXVzaWN8ZW58MHx8MHx8fDA%3D',
-      streamCount: 98450,
-      price: 1.8,
-      isForSale: true,
-      genre: 'Pop'
-    },
-    {
-      id: '3',
-      title: 'Cairo Nights',
-      artist: 'StarkNet Collective',
-      coverImage: 'https://images.unsplash.com/photo-1446057032654-9d8885db76c6?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTR8fG11c2ljfGVufDB8fDB8fHww',
-      streamCount: 217840,
-      price: 3.2,
-      isForSale: true,
-      genre: 'Electronic'
-    },
-    {
-      id: '4',
-      title: 'Blockchain Beats',
-      artist: 'Web3 Audio',
-      coverImage: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTB8fG11c2ljfGVufDB8fDB8fHww',
-      streamCount: 76540,
-      price: 1.5,
-      isForSale: true,
-      genre: 'Hip Hop'
-    },
-    {
-      id: '5',
-      title: 'Crypto Summer',
-      artist: 'Block Party',
-      coverImage: 'https://images.unsplash.com/photo-1614149162883-504ce4d13909?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8bXVzaWMlMjBjb3ZlcnxlbnwwfHwwfHx8MA%3D%3D',
-      streamCount: 354210,
-      price: 3.2,
-      isForSale: true,
-      genre: 'Pop'
-    },
-    {
-      id: '6',
-      title: 'DeFi Anthem',
-      artist: 'Token Economy',
-      coverImage: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8bXVzaWMlMjBwbGF5ZXJ8ZW58MHx8MHx8fDA%3D',
-      streamCount: 287430,
-      price: 2.8,
-      isForSale: true,
-      genre: 'Electronic'
-    },
-    {
-      id: '7',
-      title: 'Web3 Vibes',
-      artist: 'Cairo Collective',
-      coverImage: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8bXVzaWN8ZW58MHx8MHx8fDA%3D',
-      streamCount: 198650,
-      price: 1.9,
-      isForSale: true,
-      genre: 'Rock'
-    },
-    {
-      id: '8',
-      title: 'Blockchain Blues',
-      artist: 'Hash Function',
-      coverImage: 'https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTl8fG11c2ljfGVufDB8fDB8fHww',
-      streamCount: 132540,
-      price: 1.5,
-      isForSale: true,
-      genre: 'Blues'
+// Define Song type consistent with fetch page
+type Song = {
+  id: number;
+  name: string;
+  ipfsHash: string;
+  previewIpfsHash: string;
+  price: bigint;
+  owner: string;
+  forSale: boolean;
+};
+
+const genres = ['All Genres', 'Electronic', 'Pop', 'Hip Hop', 'Rock', 'Jazz', 'Blues', 'Classical'];
+
+// Sample cover images to use as fallbacks
+const sampleCoverImages = [
+  'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8bXVzaWMlMjBwbGF5ZXJ8ZW58MHx8MHx8fDA%3D',
+  'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8OHx8bXVzaWN8ZW58MHx8MHx8fDA%3D',
+  'https://images.unsplash.com/photo-1446057032654-9d8885db76c6?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTR8fG11c2ljfGVufDB8fDB8fHww',
+  'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTB8fG11c2ljfGVufDB8fDB8fHww',
+];
+
+// Fallback image in case IPFS fails
+const FALLBACK_IMAGE = '/images/music-placeholder.jpg';
+
+// Available IPFS Gateways
+const IPFS_GATEWAYS = [
+  'https://amber-voluntary-possum-989.mypinata.cloud/ipfs/',
+  'https://cloudflare-ipfs.com/ipfs/',
+  'https://ipfs.io/ipfs/',
+];
+
+// Add a memoization cache to avoid repeated API calls for the same hash
+const ipfsUrlCache: Record<string, string> = {};
+
+// Helper function to get IPFS gateway URL from hash
+const getIPFSUrl = async (ipfsHash: string, isAudio = false): Promise<string> => {
+  if (!ipfsHash || ipfsHash === 'Invalid data') {
+    return isAudio ? '' : FALLBACK_IMAGE;
+  }
+
+  // Clean the hash (remove ipfs:// prefix if present)
+  const cleanHash = ipfsHash.startsWith('ipfs://') ? ipfsHash.slice(7) : ipfsHash;
+  
+  try {
+    // First try our API which might have additional optimizations
+    try {
+      const response = await fetch(`/api/ipfs?cid=${encodeURIComponent(cleanHash)}&mimeType=${isAudio ? 'audio/mpeg' : 'image/*'}`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.gateways && data.gateways.length > 0) {
+          // Return the first gateway URL - ensure it has https:// prefix
+          console.log(`Using API gateway for ${cleanHash}`);
+          const url = data.gateways[0];
+          
+          // Make sure URL starts with http:// or https://
+          if (url.startsWith('http://') || url.startsWith('https://')) {
+            return url;
+          } else if (url.includes('/ipfs/')) {
+            // Fix URLs that are missing the protocol
+            return `https://${url}`;
+          } else {
+            return `https://${IPFS_GATEWAYS[0]}${cleanHash}`;
+          }
+        }
+      }
+    } catch (error) {
+      console.warn("IPFS API error, trying direct gateways");
     }
-  ],
-  genres: ['All Genres', 'Electronic', 'Pop', 'Hip Hop', 'Rock', 'Jazz', 'Blues', 'Classical'],
-  priceRange: { min: 0.5, max: 10 }
+    
+    // If API fails, use our list of gateways directly
+    const gatewayUrl = `${IPFS_GATEWAYS[0]}${cleanHash}`;
+    // Ensure the URL has https:// prefix
+    return gatewayUrl.startsWith('http') ? gatewayUrl : `https://${gatewayUrl}`;
+  } catch (error) {
+    console.error("All IPFS gateway attempts failed:", error);
+    return isAudio ? '' : FALLBACK_IMAGE;
+  }
+};
+
+// Cached version of getIPFSUrl
+const getCachedIPFSUrl = async (ipfsHash: string, isAudio = false): Promise<string> => {
+  if (!ipfsHash) return isAudio ? '' : FALLBACK_IMAGE;
+  
+  // Check cache first with audio type consideration
+  const cacheKey = `${ipfsHash}-${isAudio ? 'audio' : 'image'}`;
+  if (ipfsUrlCache[cacheKey]) {
+    return ipfsUrlCache[cacheKey];
+  }
+  
+  // Get the URL
+  const url = await getIPFSUrl(ipfsHash, isAudio);
+  
+  // Cache it
+  ipfsUrlCache[cacheKey] = url;
+  
+  return url;
+};
+
+// Function to handle ByteArray-specific decoding for strings
+const extractByteArrayText = (byteArray: any): string => {
+  // If it's not a ByteArray-like object, return empty
+  if (!byteArray || typeof byteArray !== 'object') {
+    return '';
+  }
+  
+  try {
+    // The ByteArray structure in Cairo has specific properties:
+    // 1. 'data' - An array of bytes31 chunks
+    // 2. 'pending_word' - Any remaining data in a felt252
+    // 3. 'pending_word_len' - Length of the pending word
+    
+    let result = '';
+    
+    // Process the data array (main content)
+    if (byteArray.data && Array.isArray(byteArray.data)) {
+      for (const chunk of byteArray.data) {
+        if (chunk) {
+          try {
+            // For felt252 values, we need to decode them
+            result += shortString.decodeShortString(chunk.toString());
+          } catch (e) {
+            // If decoding fails, try using the raw string
+            const rawChunk = chunk.toString();
+            if (rawChunk && typeof rawChunk === 'string' && rawChunk.length > 0) {
+              result += rawChunk;
+            }
+          }
+        }
+      }
+    }
+    
+    // Process any pending word
+    if (byteArray.pending_word && byteArray.pending_word_len) {
+      try {
+        // Only if it has actual content (pending_word_len > 0)
+        if (Number(byteArray.pending_word_len) > 0) {
+          result += shortString.decodeShortString(byteArray.pending_word.toString());
+        }
+      } catch (e) {
+        // If decoding fails, try using the raw string
+        const pendingWord = byteArray.pending_word.toString();
+        if (pendingWord && pendingWord.length > 0) {
+          result += pendingWord;
+        }
+      }
+    }
+    
+    return result;
+  } catch (e) {
+    console.error("Error extracting ByteArray text:", e);
+    return '';
+  }
+};
+
+// Simple ByteArray decoder - fallback for various use cases
+const decodeByteArray = (byteArray: any): string => {
+  // First try our specialized extractor
+  const extracted = extractByteArrayText(byteArray);
+  if (extracted && extracted.length > 0) {
+    return extracted;
+  }
+  
+  // Fallback: try simple toString approach
+  try {
+    if (byteArray && byteArray.toString) {
+      const str = byteArray.toString();
+      // Try to decode if it looks like a felt
+      try {
+        return shortString.decodeShortString(str);
+      } catch (e) {
+        return str; // Return as-is if decoding fails
+      }
+    }
+  } catch (error) {
+    console.error("Error in basic decodeByteArray:", error);
+  }
+  
+  return '';
+};
+
+// Update the decodeSongName function to better handle ByteArray
+const decodeSongName = (nameData: any, songId: number): string => {
+  console.log(`Decoding name for Song ID ${songId}:`, nameData);
+  
+  // First attempt to use our specialized ByteArray extractor
+  const extractedName = extractByteArrayText(nameData);
+  if (extractedName && extractedName.length > 0) {
+    console.log(`Successfully extracted name text for Song ID ${songId}:`, extractedName);
+    return extractedName;
+  }
+  
+  // Handle direct string case from contract
+  if (typeof nameData === 'string') {
+    return nameData;
+  }
+  
+  // Handle number case
+  if (typeof nameData === 'number') {
+    return `Song ${nameData}`;
+  }
+  
+  // Try to access data directly if present in this format
+  if (nameData && nameData.data) {
+    try {
+      // Check if it's an array of bytes31
+      if (Array.isArray(nameData.data)) {
+        let text = '';
+        for (const chunk of nameData.data) {
+          if (chunk) {
+            // Try decoding as shortString first
+            try {
+              text += shortString.decodeShortString(chunk.toString());
+            } catch {
+              // Just append the raw chunk if decoding fails
+              text += chunk.toString();
+            }
+          }
+        }
+        if (text) return text;
+      }
+    } catch (e) {
+      console.error(`Error processing data array for song ${songId}:`, e);
+    }
+  }
+  
+  // If nameData is an object with a name property, use that
+  if (nameData && typeof nameData === 'object' && 'name' in nameData) {
+    return String(nameData.name);
+  }
+  
+  // Last resort: use a generic name with the ID
+  return `Song ${songId}`;
 };
 
 const Page = () => {
@@ -126,32 +282,284 @@ const Page = () => {
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [playingSong, setPlayingSong] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState('Popular');
+  const [songs, setSongs] = useState<Song[]>([]);
+  const [songGenres, setSongGenres] = useState<Record<string, string>>({});
+  const [streamCounts, setStreamCounts] = useState<Record<string, number>>({});
+  const [artistNames, setArtistNames] = useState<Record<string, string>>({});
+  const [coverImages, setCoverImages] = useState<Record<string, string>>({});
+  const [loadingImages, setLoadingImages] = useState(true);
+  
+  // Get wallet connection status
+  const { address } = useAccount();
+  
+  // Setup contract
+  const { contract } = useContract({
+    address: CAIROFY_CONTRACT_ADDRESS,
+    abi: CAIROFY_ABI,
+  });
+  
+  // Initialize transaction hook
+  const { sendAsync } = useSendTransaction({
+    calls: [], // Start with empty calls, we'll provide them when sending the transaction
+  });
+  
+  // Read contract data using hook
+  const { data, isLoading, error } = useReadContract({
+    functionName: 'get_all_songs',
+    args: [],
+    address: CAIROFY_CONTRACT_ADDRESS,
+    abi: CAIROFY_ABI,
+  });
+
+  // Process the songs data when it's received
+  useEffect(() => {
+    if (error) {
+      console.error("Error fetching songs:", error);
+      toast.error("Error loading songs from blockchain");
+      setSongs([]);
+      return;
+    }
+
+    if (data && Array.isArray(data)) {
+      console.log("Songs data from contract:", data);
+      
+      try {
+        // Parse songs using the enhanced approach from fetch page
+        const parsedSongs = data.map((song: any) => {
+          try {
+            // Extract numerical ID
+            const id = Number(song.id);
+            
+            // Decode song name with enhanced error handling
+            let name = decodeSongName(song.name, id);
+            
+            // Avoid showing empty or purely numeric names
+            if (!name || name.trim() === '' || (!isNaN(Number(name)) && !name.includes('Song'))) {
+              console.warn(`Song ${id} has invalid name: "${name}". Using fallback.`);
+              name = `Unknown Song ${id}`;
+            }
+            
+            // Decode IPFS hashes with better error handling
+            let ipfsHash = "";
+            try {
+              ipfsHash = decodeByteArray(song.ipfs_hash);
+            } catch (e) {
+              console.error(`Error decoding ipfs_hash for song ${id}:`, e);
+            }
+            
+            let previewIpfsHash = "";
+            try {
+              previewIpfsHash = decodeByteArray(song.preview_ipfs_hash);
+            } catch (e) {
+              console.error(`Error decoding preview_ipfs_hash for song ${id}:`, e);
+            }
+            
+            // Extract price (handles both object and primitive formats)
+            const price = BigInt(
+              typeof song.price === 'object' && 'low' in song.price 
+                ? song.price.low 
+                : typeof song.price === 'object' 
+                  ? song.price.toString() 
+                  : song.price
+            );
+            
+            // Format the owner address
+            const owner = `0x${BigInt(song.owner).toString(16).padStart(64, '0')}`;
+            
+            // Determine if for sale
+            const forSale = Boolean(song.for_sale);
+            
+            // Log successful parsing
+            console.log(`Successfully parsed song ${id}:`, {name, ipfsHash, previewIpfsHash});
+
+            return {
+              id,
+              name,
+              ipfsHash,
+              previewIpfsHash,
+              price,
+              owner,
+              forSale
+            };
+          } catch (error) {
+            console.error("Error parsing song:", error, song);
+            // Return a minimal valid song object to avoid breaking the UI
+            return {
+              id: song.id ? Number(song.id) : 0,
+              name: "Error: Unparsable Song",
+              ipfsHash: "",
+              previewIpfsHash: "",
+              price: BigInt(0),
+              owner: "0x0",
+              forSale: false
+            };
+          }
+        });
+        
+        setSongs(parsedSongs);
+        
+        // Populate additional data maps
+        const newGenres: Record<string, string> = {};
+        const newStreamCounts: Record<string, number> = {};
+        const newArtistNames: Record<string, string> = {};
+        
+        parsedSongs.forEach((song) => {
+          const songId = song.id.toString();
+          const randomGenre = genres[Math.floor(Math.random() * (genres.length - 1)) + 1]; // Skip "All Genres"
+          const randomStreamCount = Math.floor(Math.random() * 500000) + 50000;
+          
+          newGenres[songId] = randomGenre;
+          newStreamCounts[songId] = randomStreamCount;
+          newArtistNames[songId] = `Artist ${songId}`;
+        });
+        
+        setSongGenres(newGenres);
+        setStreamCounts(newStreamCounts);
+        setArtistNames(newArtistNames);
+        
+        // Load cover images
+        loadCoverImagesForSongs(parsedSongs);
+      } catch (error) {
+        console.error("Error processing songs data:", error);
+        toast.error("Error processing songs data");
+        setSongs([]);
+      }
+    } else if (!isLoading) {
+      console.log("No songs data received");
+      setSongs([]);
+    }
+  }, [data, isLoading, error]);
+  
+  // Function to load cover images for all songs
+  const loadCoverImagesForSongs = async (songsList: Song[]) => {
+    setLoadingImages(true);
+    console.log("Loading cover images for songs:", songsList.map(s => ({ id: s.id, ipfsHash: s.ipfsHash })));
+    
+    const newCoverImages: Record<string, string> = {};
+    
+    // Load images in parallel
+    const imagePromises = songsList.map(async (song) => {
+      const songId = song.id.toString();
+      try {
+        if (song.ipfsHash) {
+          console.log(`Loading image for song ${songId} with hash ${song.ipfsHash}`);
+          const imageUrl = await getCachedIPFSUrl(song.ipfsHash, false);
+          console.log(`Got image URL for song ${songId}: ${imageUrl}`);
+          return { songId, imageUrl };
+        }
+        console.log(`No IPFS hash for song ${songId}, using fallback image`);
+        return { songId, imageUrl: FALLBACK_IMAGE };
+      } catch (error) {
+        console.error(`Error loading image for song ${songId}:`, error);
+        return { songId, imageUrl: FALLBACK_IMAGE };
+      }
+    });
+    
+    // Wait for all images to load
+    const results = await Promise.all(imagePromises);
+    
+    // Process results
+    results.forEach(({ songId, imageUrl }) => {
+      newCoverImages[songId] = imageUrl;
+    });
+    
+    console.log("Finished loading cover images:", newCoverImages);
+    setCoverImages(newCoverImages);
+    setLoadingImages(false);
+  };
+  
+  // Get song price in ETH format
+  const getSongPrice = (song: Song) => {
+    return Number(song.price) / 10**18;
+  };
   
   const handlePlay = (songId: string) => {
     setPlayingSong(songId === playingSong ? null : songId);
   };
 
+  // Function to buy a song
+  const handleBuySong = async (songId: string) => {
+    if (!address) {
+      toast.error("Please connect your wallet first");
+      return;
+    }
+    
+    if (!contract) {
+      toast.error("Contract not initialized");
+      return;
+    }
+    
+    try {
+      toast.loading("Please confirm the transaction in your wallet...", {
+        id: "buy-transaction-pending",
+      });
+      
+      // Prepare the buy_song transaction call
+      const calls = contract.populate('buy_song', [BigInt(songId)]);
+      
+      if (!calls) {
+        throw new Error('Failed to create contract call');
+      }
+      
+      // Send the transaction
+      const response = await sendAsync([calls]);
+      
+      console.log("Transaction response:", response);
+      
+      if (response.transaction_hash) {
+        toast.success(`Transaction submitted! Transaction hash: ${response.transaction_hash.substring(0, 10)}...`, {
+          id: "buy-transaction-pending",
+        });
+      }
+      
+    } catch (error) {
+      console.error('Error buying song:', error);
+      let errorMessage = 'Unknown contract error';
+      
+      if (error instanceof Error) {
+        if (error.message.includes("User rejected")) {
+          errorMessage = "Transaction was rejected in the wallet";
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      toast.error(`Failed to buy song: ${errorMessage}`, {
+        id: "buy-transaction-pending",
+      });
+    }
+  };
+
   // Filter songs based on search, genre, and price
-  const filteredSongs = marketplaceData.topSongs.filter(song => {
-    const matchesSearch = song.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                         song.artist.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesGenre = selectedGenre === 'All Genres' || song.genre === selectedGenre;
-    const matchesPrice = song.price >= priceRange[0] && song.price <= priceRange[1];
+  const filteredSongs = songs.filter(song => {
+    const songId = song.id.toString();
+    const title = song.name;
+    const artistName = artistNames[songId] || '';
+    const genre = songGenres[songId] || '';
+    const price = getSongPrice(song);
+    
+    const matchesSearch = title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                         artistName.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesGenre = selectedGenre === 'All Genres' || genre === selectedGenre;
+    const matchesPrice = price >= priceRange[0] && price <= priceRange[1];
     
     return matchesSearch && matchesGenre && matchesPrice;
   });
 
   // Sort songs based on selected sort criteria
   const sortedSongs = [...filteredSongs].sort((a, b) => {
+    const aId = a.id.toString();
+    const bId = b.id.toString();
+    
     if (sortBy === 'Popular') {
-      return b.streamCount - a.streamCount;
+      return (streamCounts[bId] || 0) - (streamCounts[aId] || 0);
     } else if (sortBy === 'Price: Low to High') {
-      return a.price - b.price;
+      return getSongPrice(a) - getSongPrice(b);
     } else if (sortBy === 'Price: High to Low') {
-      return b.price - a.price;
+      return getSongPrice(b) - getSongPrice(a);
     } else if (sortBy === 'Newest') {
       // For this demo, we'll just sort by ID as a proxy for newest
-      return parseInt(b.id) - parseInt(a.id);
+      return Number(b.id) - Number(a.id);
     }
     return 0;
   });
@@ -246,7 +654,7 @@ const Page = () => {
                         <div>
                           <h3 className="text-white font-medium mb-3">Genre</h3>
                           <div className="flex flex-wrap gap-2">
-                            {marketplaceData.genres.map((genre) => (
+                            {genres.map((genre) => (
                               <Badge
                                 key={genre}
                                 className={`cursor-pointer px-3 py-1 rounded-full ${
@@ -266,7 +674,7 @@ const Page = () => {
                           <h3 className="text-white font-medium mb-3">Price Range (STARK)</h3>
                           <Slider
                             defaultValue={[0.5, 5]}
-                            max={10}
+                            max={1100}
                             min={0.5}
                             step={0.1}
                             value={priceRange}
@@ -342,23 +750,44 @@ const Page = () => {
                 </div>
               </div>
               
-              {/* Song Grid */}
-              {sortedSongs.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-                  {sortedSongs.map((song) => (
-                    <SongCard
-                      key={song.id}
-                      title={song.title}
-                      artist={song.artist}
-                      coverImage={song.coverImage}
-                      streamCount={song.streamCount}
-                      price={song.price}
-                      isForSale={song.isForSale}
-                      onPlay={() => handlePlay(song.id)}
-                    />
-                  ))}
+              {/* Loading State */}
+              {isLoading && (
+                <div className="flex items-center justify-center py-20">
+                  <Loader2 className="h-10 w-10 text-primary animate-spin" />
+                  <p className="ml-4 text-white text-lg">Loading songs from blockchain...</p>
                 </div>
-              ) : (
+              )}
+              
+              {/* Song Grid */}
+              {!isLoading && sortedSongs.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+                  {sortedSongs.map((song) => {
+                    const songId = song.id.toString();
+                    const coverImage = coverImages[songId] || FALLBACK_IMAGE;
+                    
+                    console.log(`Rendering song ${songId} with name: ${song.name}, cover: ${coverImage}`);
+                    
+                    return (
+                      <Link href={`/songDetails?id=${songId}`} key={songId}>
+                        <SongCard
+                          title={song.name}
+                          artist={artistNames[songId] || `Artist ${songId}`}
+                          coverImage={coverImage}
+                          streamCount={streamCounts[songId] || 0}
+                          price={getSongPrice(song)}
+                          isForSale={song.forSale}
+                          onPlay={() => handlePlay(songId)}
+                          onBuy={() => {
+                            handleBuySong(songId);
+                            return false; // Prevent navigation
+                          }}
+                          songId={songId}
+                        />
+                      </Link>
+                    );
+                  })}
+                </div>
+              ) : !isLoading && (
                 <div className="text-center py-12 bg-[#1A1A1A] rounded-xl border border-[#333333]">
                   <Music className="h-16 w-16 text-white/20 mx-auto mb-4" />
                   <h3 className="text-xl font-medium text-white mb-2">No songs found</h3>

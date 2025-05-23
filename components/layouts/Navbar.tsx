@@ -1,10 +1,8 @@
 "use client";
-import React, { useState } from "react";
-import { motion } from "framer-motion";
 import Link from "next/link";
 import ConnectWalletButton from "../form/ConnectWalletButton";
 import { useAccount } from "@starknet-react/core";
-import { Wallet, Disc3, ShoppingBag, Home, User, Menu, X } from "lucide-react";
+import {  Disc3} from "lucide-react";
 
 const Navbar: React.FC = () => {
   const { address } = useAccount();

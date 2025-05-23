@@ -35,7 +35,7 @@ const userData = {
 
 const Profile = () => {
   return (
-    <div className="min-h-screen bg-[#0F0F0]">
+    <div className="min-h-screen bg-black">
       <Navbar />
       
       <main className="container mx-auto px-4 pt-24 pb-20">

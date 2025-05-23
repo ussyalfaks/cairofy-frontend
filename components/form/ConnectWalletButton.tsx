@@ -39,11 +39,11 @@ const ConnectWalletButton: React.FC<ConnectWalletButtonProps> = ({
     }
   }
 
-  useEffect(() => {
-    if (isSuccess && address && account) {
-      router.push('/pay-bill');
-    }
-  }, [isSuccess, address, account, router]);
+  // useEffect(() => {
+  //   if (isSuccess && address && account) {
+  //     router.push('/pay-bill');
+  //   }
+  // }, [isSuccess, address, account, router]);
 
   if (!address) {
     return (

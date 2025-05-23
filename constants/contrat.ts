@@ -1,34 +1,33 @@
 export const CAIROFY_CONTRACT_ADDRESS = "0x07059bd584818a02e7f8268bf6f29f8fc879c04b61f19a91cc261e4f3167bff0";
 
 // Basic ABI for the Supermarket contract
-
 export const CAIROFY_ABI = [
   {
+    "type": "function",
     "name": "pause",
-    "type": "function",
     "inputs": [],
     "outputs": [],
     "state_mutability": "external"
   },
   {
+    "type": "function",
     "name": "unpause",
-    "type": "function",
     "inputs": [],
     "outputs": [],
     "state_mutability": "external"
   },
   {
-    "name": "UpgradeableImpl",
     "type": "impl",
+    "name": "UpgradeableImpl",
     "interface_name": "openzeppelin_upgrades::interface::IUpgradeable"
   },
   {
-    "name": "openzeppelin_upgrades::interface::IUpgradeable",
     "type": "interface",
+    "name": "openzeppelin_upgrades::interface::IUpgradeable",
     "items": [
       {
-        "name": "upgrade",
         "type": "function",
+        "name": "upgrade",
         "inputs": [
           {
             "name": "new_class_hash",
@@ -41,13 +40,13 @@ export const CAIROFY_ABI = [
     ]
   },
   {
-    "name": "CairofyImpl",
     "type": "impl",
+    "name": "CairofyImpl",
     "interface_name": "cairofy_contract::interfaces::ICairofy::ICairofy"
   },
   {
-    "name": "core::byte_array::ByteArray",
     "type": "struct",
+    "name": "core::byte_array::ByteArray",
     "members": [
       {
         "name": "data",
@@ -64,8 +63,8 @@ export const CAIROFY_ABI = [
     ]
   },
   {
-    "name": "core::integer::u256",
     "type": "struct",
+    "name": "core::integer::u256",
     "members": [
       {
         "name": "low",
@@ -78,8 +77,8 @@ export const CAIROFY_ABI = [
     ]
   },
   {
-    "name": "core::bool",
     "type": "enum",
+    "name": "core::bool",
     "variants": [
       {
         "name": "False",
@@ -92,8 +91,8 @@ export const CAIROFY_ABI = [
     ]
   },
   {
-    "name": "cairofy_contract::structs::Structs::Song",
     "type": "struct",
+    "name": "cairofy_contract::structs::Structs::Song",
     "members": [
       {
         "name": "id",
@@ -126,8 +125,8 @@ export const CAIROFY_ABI = [
     ]
   },
   {
-    "name": "cairofy_contract::structs::Structs::ArtisteMetadata",
     "type": "struct",
+    "name": "cairofy_contract::structs::Structs::ArtisteMetadata",
     "members": [
       {
         "name": "name",
@@ -176,8 +175,8 @@ export const CAIROFY_ABI = [
     ]
   },
   {
-    "name": "cairofy_contract::structs::Structs::UserSubscription",
     "type": "struct",
+    "name": "cairofy_contract::structs::Structs::UserSubscription",
     "members": [
       {
         "name": "start_date",
@@ -202,8 +201,8 @@ export const CAIROFY_ABI = [
     ]
   },
   {
-    "name": "cairofy_contract::structs::Structs::User",
     "type": "struct",
+    "name": "cairofy_contract::structs::Structs::User",
     "members": [
       {
         "name": "user_name",
@@ -224,8 +223,8 @@ export const CAIROFY_ABI = [
     ]
   },
   {
-    "name": "cairofy_contract::structs::Structs::PlatformStats",
     "type": "struct",
+    "name": "cairofy_contract::structs::Structs::PlatformStats",
     "members": [
       {
         "name": "total_suscribers",
@@ -238,8 +237,8 @@ export const CAIROFY_ABI = [
     ]
   },
   {
-    "name": "cairofy_contract::structs::Structs::SongStats",
     "type": "struct",
+    "name": "cairofy_contract::structs::Structs::SongStats",
     "members": [
       {
         "name": "song_id",
@@ -260,12 +259,12 @@ export const CAIROFY_ABI = [
     ]
   },
   {
-    "name": "cairofy_contract::interfaces::ICairofy::ICairofy",
     "type": "interface",
+    "name": "cairofy_contract::interfaces::ICairofy::ICairofy",
     "items": [
       {
-        "name": "register_song",
         "type": "function",
+        "name": "register_song",
         "inputs": [
           {
             "name": "name",
@@ -292,8 +291,8 @@ export const CAIROFY_ABI = [
         "state_mutability": "external"
       },
       {
-        "name": "get_song_info",
         "type": "function",
+        "name": "get_song_info",
         "inputs": [
           {
             "name": "song_id",
@@ -308,8 +307,8 @@ export const CAIROFY_ABI = [
         "state_mutability": "view"
       },
       {
-        "name": "register_artiste",
         "type": "function",
+        "name": "register_artiste",
         "inputs": [
           {
             "name": "name",
@@ -332,8 +331,8 @@ export const CAIROFY_ABI = [
         "state_mutability": "external"
       },
       {
-        "name": "get_song_count",
         "type": "function",
+        "name": "get_song_count",
         "inputs": [],
         "outputs": [
           {
@@ -343,8 +342,8 @@ export const CAIROFY_ABI = [
         "state_mutability": "view"
       },
       {
-        "name": "update_song_price",
         "type": "function",
+        "name": "update_song_price",
         "inputs": [
           {
             "name": "song_id",
@@ -359,8 +358,8 @@ export const CAIROFY_ABI = [
         "state_mutability": "external"
       },
       {
-        "name": "get_preview",
         "type": "function",
+        "name": "get_preview",
         "inputs": [
           {
             "name": "song_id",
@@ -375,8 +374,8 @@ export const CAIROFY_ABI = [
         "state_mutability": "view"
       },
       {
-        "name": "buy_song",
         "type": "function",
+        "name": "buy_song",
         "inputs": [
           {
             "name": "song_id",
@@ -387,8 +386,8 @@ export const CAIROFY_ABI = [
         "state_mutability": "external"
       },
       {
-        "name": "subscribe",
         "type": "function",
+        "name": "subscribe",
         "inputs": [],
         "outputs": [
           {
@@ -398,8 +397,8 @@ export const CAIROFY_ABI = [
         "state_mutability": "external"
       },
       {
-        "name": "get_user_subscription",
         "type": "function",
+        "name": "get_user_subscription",
         "inputs": [
           {
             "name": "user",
@@ -414,8 +413,8 @@ export const CAIROFY_ABI = [
         "state_mutability": "view"
       },
       {
-        "name": "get_user",
         "type": "function",
+        "name": "get_user",
         "inputs": [
           {
             "name": "caller",
@@ -430,8 +429,8 @@ export const CAIROFY_ABI = [
         "state_mutability": "view"
       },
       {
-        "name": "get_subscription_count",
         "type": "function",
+        "name": "get_subscription_count",
         "inputs": [],
         "outputs": [
           {
@@ -441,8 +440,8 @@ export const CAIROFY_ABI = [
         "state_mutability": "view"
       },
       {
-        "name": "set_song_for_sale",
         "type": "function",
+        "name": "set_song_for_sale",
         "inputs": [
           {
             "name": "song_id",
@@ -453,8 +452,8 @@ export const CAIROFY_ABI = [
         "state_mutability": "external"
       },
       {
-        "name": "update_subscription_details",
         "type": "function",
+        "name": "update_subscription_details",
         "inputs": [
           {
             "name": "user",
@@ -469,8 +468,8 @@ export const CAIROFY_ABI = [
         "state_mutability": "external"
       },
       {
-        "name": "stream_song",
         "type": "function",
+        "name": "stream_song",
         "inputs": [
           {
             "name": "song_id",
@@ -485,8 +484,8 @@ export const CAIROFY_ABI = [
         "state_mutability": "external"
       },
       {
-        "name": "get_all_songs",
         "type": "function",
+        "name": "get_all_songs",
         "inputs": [],
         "outputs": [
           {
@@ -496,8 +495,8 @@ export const CAIROFY_ABI = [
         "state_mutability": "view"
       },
       {
-        "name": "update_user",
         "type": "function",
+        "name": "update_user",
         "inputs": [
           {
             "name": "caller",
@@ -512,8 +511,8 @@ export const CAIROFY_ABI = [
         "state_mutability": "external"
       },
       {
-        "name": "get_user_songs",
         "type": "function",
+        "name": "get_user_songs",
         "inputs": [
           {
             "name": "user",
@@ -528,8 +527,8 @@ export const CAIROFY_ABI = [
         "state_mutability": "view"
       },
       {
-        "name": "is_song_owner",
         "type": "function",
+        "name": "is_song_owner",
         "inputs": [
           {
             "name": "song_id",
@@ -544,8 +543,8 @@ export const CAIROFY_ABI = [
         "state_mutability": "view"
       },
       {
-        "name": "get_platform_stats",
         "type": "function",
+        "name": "get_platform_stats",
         "inputs": [],
         "outputs": [
           {
@@ -555,8 +554,8 @@ export const CAIROFY_ABI = [
         "state_mutability": "view"
       },
       {
-        "name": "get_popular_songs_stats",
         "type": "function",
+        "name": "get_popular_songs_stats",
         "inputs": [
           {
             "name": "limit",
@@ -573,17 +572,17 @@ export const CAIROFY_ABI = [
     ]
   },
   {
-    "name": "PausableImpl",
     "type": "impl",
+    "name": "PausableImpl",
     "interface_name": "openzeppelin_security::interface::IPausable"
   },
   {
-    "name": "openzeppelin_security::interface::IPausable",
     "type": "interface",
+    "name": "openzeppelin_security::interface::IPausable",
     "items": [
       {
-        "name": "is_paused",
         "type": "function",
+        "name": "is_paused",
         "inputs": [],
         "outputs": [
           {
@@ -595,17 +594,17 @@ export const CAIROFY_ABI = [
     ]
   },
   {
-    "name": "OwnableMixinImpl",
     "type": "impl",
+    "name": "OwnableMixinImpl",
     "interface_name": "openzeppelin_access::ownable::interface::OwnableABI"
   },
   {
-    "name": "openzeppelin_access::ownable::interface::OwnableABI",
     "type": "interface",
+    "name": "openzeppelin_access::ownable::interface::OwnableABI",
     "items": [
       {
-        "name": "owner",
         "type": "function",
+        "name": "owner",
         "inputs": [],
         "outputs": [
           {
@@ -615,8 +614,8 @@ export const CAIROFY_ABI = [
         "state_mutability": "view"
       },
       {
-        "name": "transfer_ownership",
         "type": "function",
+        "name": "transfer_ownership",
         "inputs": [
           {
             "name": "new_owner",
@@ -627,15 +626,15 @@ export const CAIROFY_ABI = [
         "state_mutability": "external"
       },
       {
-        "name": "renounce_ownership",
         "type": "function",
+        "name": "renounce_ownership",
         "inputs": [],
         "outputs": [],
         "state_mutability": "external"
       },
       {
-        "name": "transferOwnership",
         "type": "function",
+        "name": "transferOwnership",
         "inputs": [
           {
             "name": "newOwner",
@@ -646,8 +645,8 @@ export const CAIROFY_ABI = [
         "state_mutability": "external"
       },
       {
-        "name": "renounceOwnership",
         "type": "function",
+        "name": "renounceOwnership",
         "inputs": [],
         "outputs": [],
         "state_mutability": "external"
@@ -655,8 +654,8 @@ export const CAIROFY_ABI = [
     ]
   },
   {
-    "name": "constructor",
     "type": "constructor",
+    "name": "constructor",
     "inputs": [
       {
         "name": "owner",
@@ -669,246 +668,246 @@ export const CAIROFY_ABI = [
     ]
   },
   {
-    "kind": "struct",
+    "type": "event",
     "name": "openzeppelin_security::pausable::PausableComponent::Paused",
-    "type": "event",
+    "kind": "struct",
     "members": [
       {
-        "kind": "data",
         "name": "account",
-        "type": "core::starknet::contract_address::ContractAddress"
+        "type": "core::starknet::contract_address::ContractAddress",
+        "kind": "data"
       }
     ]
   },
   {
-    "kind": "struct",
+    "type": "event",
     "name": "openzeppelin_security::pausable::PausableComponent::Unpaused",
-    "type": "event",
+    "kind": "struct",
     "members": [
       {
-        "kind": "data",
         "name": "account",
-        "type": "core::starknet::contract_address::ContractAddress"
+        "type": "core::starknet::contract_address::ContractAddress",
+        "kind": "data"
       }
     ]
   },
   {
-    "kind": "enum",
+    "type": "event",
     "name": "openzeppelin_security::pausable::PausableComponent::Event",
-    "type": "event",
+    "kind": "enum",
     "variants": [
       {
-        "kind": "nested",
         "name": "Paused",
-        "type": "openzeppelin_security::pausable::PausableComponent::Paused"
+        "type": "openzeppelin_security::pausable::PausableComponent::Paused",
+        "kind": "nested"
       },
       {
-        "kind": "nested",
         "name": "Unpaused",
-        "type": "openzeppelin_security::pausable::PausableComponent::Unpaused"
+        "type": "openzeppelin_security::pausable::PausableComponent::Unpaused",
+        "kind": "nested"
       }
     ]
   },
   {
-    "kind": "struct",
+    "type": "event",
     "name": "openzeppelin_access::ownable::ownable::OwnableComponent::OwnershipTransferred",
-    "type": "event",
+    "kind": "struct",
     "members": [
       {
-        "kind": "key",
         "name": "previous_owner",
-        "type": "core::starknet::contract_address::ContractAddress"
+        "type": "core::starknet::contract_address::ContractAddress",
+        "kind": "key"
       },
       {
-        "kind": "key",
         "name": "new_owner",
-        "type": "core::starknet::contract_address::ContractAddress"
+        "type": "core::starknet::contract_address::ContractAddress",
+        "kind": "key"
       }
     ]
   },
   {
-    "kind": "struct",
+    "type": "event",
     "name": "openzeppelin_access::ownable::ownable::OwnableComponent::OwnershipTransferStarted",
-    "type": "event",
+    "kind": "struct",
     "members": [
       {
-        "kind": "key",
         "name": "previous_owner",
-        "type": "core::starknet::contract_address::ContractAddress"
+        "type": "core::starknet::contract_address::ContractAddress",
+        "kind": "key"
       },
       {
-        "kind": "key",
         "name": "new_owner",
-        "type": "core::starknet::contract_address::ContractAddress"
+        "type": "core::starknet::contract_address::ContractAddress",
+        "kind": "key"
       }
     ]
   },
   {
-    "kind": "enum",
+    "type": "event",
     "name": "openzeppelin_access::ownable::ownable::OwnableComponent::Event",
-    "type": "event",
+    "kind": "enum",
     "variants": [
       {
-        "kind": "nested",
         "name": "OwnershipTransferred",
-        "type": "openzeppelin_access::ownable::ownable::OwnableComponent::OwnershipTransferred"
+        "type": "openzeppelin_access::ownable::ownable::OwnableComponent::OwnershipTransferred",
+        "kind": "nested"
       },
       {
-        "kind": "nested",
         "name": "OwnershipTransferStarted",
-        "type": "openzeppelin_access::ownable::ownable::OwnableComponent::OwnershipTransferStarted"
+        "type": "openzeppelin_access::ownable::ownable::OwnableComponent::OwnershipTransferStarted",
+        "kind": "nested"
       }
     ]
   },
   {
-    "kind": "struct",
+    "type": "event",
     "name": "openzeppelin_upgrades::upgradeable::UpgradeableComponent::Upgraded",
-    "type": "event",
+    "kind": "struct",
     "members": [
       {
-        "kind": "data",
         "name": "class_hash",
-        "type": "core::starknet::class_hash::ClassHash"
+        "type": "core::starknet::class_hash::ClassHash",
+        "kind": "data"
       }
     ]
   },
   {
-    "kind": "enum",
+    "type": "event",
     "name": "openzeppelin_upgrades::upgradeable::UpgradeableComponent::Event",
-    "type": "event",
-    "variants": [
-      {
-        "kind": "nested",
-        "name": "Upgraded",
-        "type": "openzeppelin_upgrades::upgradeable::UpgradeableComponent::Upgraded"
-      }
-    ]
-  },
-  {
-    "kind": "struct",
-    "name": "cairofy_contract::events::Events::Song_Registered",
-    "type": "event",
-    "members": [
-      {
-        "kind": "data",
-        "name": "song_id",
-        "type": "core::integer::u64"
-      },
-      {
-        "kind": "data",
-        "name": "name",
-        "type": "core::byte_array::ByteArray"
-      },
-      {
-        "kind": "data",
-        "name": "ipfs_hash",
-        "type": "core::byte_array::ByteArray"
-      },
-      {
-        "kind": "data",
-        "name": "preview_ipfs_hash",
-        "type": "core::byte_array::ByteArray"
-      },
-      {
-        "kind": "data",
-        "name": "price",
-        "type": "core::integer::u256"
-      },
-      {
-        "kind": "data",
-        "name": "for_sale",
-        "type": "core::bool"
-      }
-    ]
-  },
-  {
-    "kind": "struct",
-    "name": "cairofy_contract::events::Events::SongPriceUpdated",
-    "type": "event",
-    "members": [
-      {
-        "kind": "data",
-        "name": "song_id",
-        "type": "core::integer::u64"
-      },
-      {
-        "kind": "data",
-        "name": "ipfs_hash",
-        "type": "core::byte_array::ByteArray"
-      },
-      {
-        "kind": "data",
-        "name": "preview_ipfs_hash",
-        "type": "core::byte_array::ByteArray"
-      },
-      {
-        "kind": "data",
-        "name": "updated_price",
-        "type": "core::integer::u256"
-      },
-      {
-        "kind": "data",
-        "name": "for_sale",
-        "type": "core::bool"
-      }
-    ]
-  },
-  {
-    "kind": "struct",
-    "name": "cairofy_contract::events::Events::Artiste_Created",
-    "type": "event",
-    "members": [
-      {
-        "kind": "data",
-        "name": "name",
-        "type": "core::felt252"
-      },
-      {
-        "kind": "data",
-        "name": "description",
-        "type": "core::byte_array::ByteArray"
-      },
-      {
-        "kind": "data",
-        "name": "creation_date",
-        "type": "core::integer::u64"
-      }
-    ]
-  },
-  {
     "kind": "enum",
-    "name": "cairofy_contract::contracts::Cairofy::CairofyV0::Event",
-    "type": "event",
     "variants": [
       {
-        "kind": "flat",
+        "name": "Upgraded",
+        "type": "openzeppelin_upgrades::upgradeable::UpgradeableComponent::Upgraded",
+        "kind": "nested"
+      }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "cairofy_contract::events::Events::Song_Registered",
+    "kind": "struct",
+    "members": [
+      {
+        "name": "song_id",
+        "type": "core::integer::u64",
+        "kind": "data"
+      },
+      {
+        "name": "name",
+        "type": "core::byte_array::ByteArray",
+        "kind": "data"
+      },
+      {
+        "name": "ipfs_hash",
+        "type": "core::byte_array::ByteArray",
+        "kind": "data"
+      },
+      {
+        "name": "preview_ipfs_hash",
+        "type": "core::byte_array::ByteArray",
+        "kind": "data"
+      },
+      {
+        "name": "price",
+        "type": "core::integer::u256",
+        "kind": "data"
+      },
+      {
+        "name": "for_sale",
+        "type": "core::bool",
+        "kind": "data"
+      }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "cairofy_contract::events::Events::SongPriceUpdated",
+    "kind": "struct",
+    "members": [
+      {
+        "name": "song_id",
+        "type": "core::integer::u64",
+        "kind": "data"
+      },
+      {
+        "name": "ipfs_hash",
+        "type": "core::byte_array::ByteArray",
+        "kind": "data"
+      },
+      {
+        "name": "preview_ipfs_hash",
+        "type": "core::byte_array::ByteArray",
+        "kind": "data"
+      },
+      {
+        "name": "updated_price",
+        "type": "core::integer::u256",
+        "kind": "data"
+      },
+      {
+        "name": "for_sale",
+        "type": "core::bool",
+        "kind": "data"
+      }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "cairofy_contract::events::Events::Artiste_Created",
+    "kind": "struct",
+    "members": [
+      {
+        "name": "name",
+        "type": "core::felt252",
+        "kind": "data"
+      },
+      {
+        "name": "description",
+        "type": "core::byte_array::ByteArray",
+        "kind": "data"
+      },
+      {
+        "name": "creation_date",
+        "type": "core::integer::u64",
+        "kind": "data"
+      }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "cairofy_contract::contracts::Cairofy::CairofyV0::Event",
+    "kind": "enum",
+    "variants": [
+      {
         "name": "PausableEvent",
-        "type": "openzeppelin_security::pausable::PausableComponent::Event"
+        "type": "openzeppelin_security::pausable::PausableComponent::Event",
+        "kind": "flat"
       },
       {
-        "kind": "flat",
         "name": "OwnableEvent",
-        "type": "openzeppelin_access::ownable::ownable::OwnableComponent::Event"
+        "type": "openzeppelin_access::ownable::ownable::OwnableComponent::Event",
+        "kind": "flat"
       },
       {
-        "kind": "flat",
         "name": "UpgradeableEvent",
-        "type": "openzeppelin_upgrades::upgradeable::UpgradeableComponent::Event"
+        "type": "openzeppelin_upgrades::upgradeable::UpgradeableComponent::Event",
+        "kind": "flat"
       },
       {
-        "kind": "nested",
         "name": "Song_Registered",
-        "type": "cairofy_contract::events::Events::Song_Registered"
+        "type": "cairofy_contract::events::Events::Song_Registered",
+        "kind": "nested"
       },
       {
-        "kind": "nested",
         "name": "SongPriceUpdated",
-        "type": "cairofy_contract::events::Events::SongPriceUpdated"
+        "type": "cairofy_contract::events::Events::SongPriceUpdated",
+        "kind": "nested"
       },
       {
-        "kind": "nested",
         "name": "Artiste_Created",
-        "type": "cairofy_contract::events::Events::Artiste_Created"
+        "type": "cairofy_contract::events::Events::Artiste_Created",
+        "kind": "nested"
       }
     ]
   }
