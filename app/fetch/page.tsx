@@ -1,29 +1,35 @@
 "use client";
-import { useEffect, useState, useRef, useMemo, useCallback } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useContract, useReadContract, useSendTransaction, useAccount } from "@starknet-react/core";
 import { CAIROFY_ABI, CAIROFY_CONTRACT_ADDRESS } from "@/constants/contrat";
 import { shortString } from "starknet";
 import Navbar from "@/components/layouts/Navbar";
 import Image from "next/image";
 import Link from "next/link";
-import { Play } from "lucide-react";
-import { Pause } from "lucide-react";
-import { ShoppingBag } from "lucide-react";
-import { Volume2 } from "lucide-react";
-import { VolumeX } from "lucide-react";
-import { CheckCircle } from "lucide-react";
-import { SlidersHorizontal } from "lucide-react";
-import { ChevronDown } from "lucide-react";
-import { Search } from "lucide-react";
+import { Play, Pause, ShoppingBag, ExternalLink, Volume2, VolumeX, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+
+// For playing audio
+function AudioPlayer({ ipfsUrl }: { ipfsUrl: string }) {
+  return (
+    <audio controls key={ipfsUrl}>
+      <source src={ipfsUrl} type="audio/mpeg" />
+      <source src={ipfsUrl} type="audio/wav" />
+      Your browser does not support audio playback
+    </audio>
+  );
+}
+
+// For handling metadata
+async function loadMetadata(metadataUrl: string) {
+  const response = await fetch(metadataUrl);
+  const metadata = await response.json();
+  
+  return {
+    audioUrl: metadata.animation_url, // Use animation_url for audio
+    imageUrl: metadata.image
+  };
+}
 
 type Song = {
   id: number;
@@ -115,7 +121,7 @@ const getCachedIPFSUrl = async (ipfsHash: string, isAudio = false): Promise<stri
 };
 
 // Function to handle ByteArray-specific decoding for strings
-const extractByteArrayText = (byteArray: unknown): string => {
+const extractByteArrayText = (byteArray: any): string => {
   // If it's not a ByteArray-like object, return empty
   if (!byteArray || typeof byteArray !== 'object') {
     return '';
@@ -128,16 +134,15 @@ const extractByteArrayText = (byteArray: unknown): string => {
     // 3. 'pending_word_len' - Length of the pending word
     
     let result = '';
-    const byteArrayObj = byteArray as Record<string, unknown>;
     
     // Process the data array (main content)
-    if (byteArrayObj.data && Array.isArray(byteArrayObj.data)) {
-      for (const chunk of byteArrayObj.data) {
+    if (byteArray.data && Array.isArray(byteArray.data)) {
+      for (const chunk of byteArray.data) {
         if (chunk) {
           try {
             // For felt252 values, we need to decode them
             result += shortString.decodeShortString(chunk.toString());
-          } catch {
+          } catch (e) {
             // If decoding fails, try using the raw string
             const rawChunk = chunk.toString();
             if (rawChunk && typeof rawChunk === 'string' && rawChunk.length > 0) {
@@ -149,15 +154,15 @@ const extractByteArrayText = (byteArray: unknown): string => {
     }
     
     // Process any pending word
-    if (byteArrayObj.pending_word && byteArrayObj.pending_word_len) {
+    if (byteArray.pending_word && byteArray.pending_word_len) {
       try {
         // Only if it has actual content (pending_word_len > 0)
-        if (Number(byteArrayObj.pending_word_len) > 0) {
-          result += shortString.decodeShortString(byteArrayObj.pending_word.toString());
+        if (Number(byteArray.pending_word_len) > 0) {
+          result += shortString.decodeShortString(byteArray.pending_word.toString());
         }
-      } catch (_) {
+      } catch (e) {
         // If decoding fails, try using the raw string
-        const pendingWord = byteArrayObj.pending_word.toString();
+        const pendingWord = byteArray.pending_word.toString();
         if (pendingWord && pendingWord.length > 0) {
           result += pendingWord;
         }
@@ -165,14 +170,14 @@ const extractByteArrayText = (byteArray: unknown): string => {
     }
     
     return result;
-  } catch (error) {
-    console.error("Error extracting ByteArray text:", error);
+  } catch (e) {
+    console.error("Error extracting ByteArray text:", e);
     return '';
   }
 };
 
 // Simple ByteArray decoder - fallback for various use cases
-const decodeByteArray = (byteArray: unknown): string => {
+const decodeByteArray = (byteArray: any): string => {
   // First try our specialized extractor
   const extracted = extractByteArrayText(byteArray);
   if (extracted && extracted.length > 0) {
@@ -181,12 +186,12 @@ const decodeByteArray = (byteArray: unknown): string => {
   
   // Fallback: try simple toString approach
   try {
-    if (byteArray && typeof byteArray === 'object' && 'toString' in byteArray && typeof byteArray.toString === 'function') {
+    if (byteArray && byteArray.toString) {
       const str = byteArray.toString();
       // Try to decode if it looks like a felt
       try {
         return shortString.decodeShortString(str);
-      } catch {
+      } catch (e) {
         return str; // Return as-is if decoding fails
       }
     }
@@ -198,7 +203,7 @@ const decodeByteArray = (byteArray: unknown): string => {
 };
 
 // Update the decodeSongName function to better handle ByteArray
-const decodeSongName = (nameData: unknown, songId: number): string => {
+const decodeSongName = (nameData: any, songId: number): string => {
   console.log(`Decoding name for Song ID ${songId}:`, nameData);
   
   // First attempt to use our specialized ByteArray extractor
@@ -219,36 +224,32 @@ const decodeSongName = (nameData: unknown, songId: number): string => {
   }
   
   // Try to access data directly if present in this format
-  if (nameData && typeof nameData === 'object' && nameData !== null) {
-    const nameDataObj = nameData as Record<string, unknown>;
-    if ('data' in nameDataObj && nameDataObj.data) {
-      try {
-        // Check if it's an array of bytes31
-        if (Array.isArray(nameDataObj.data)) {
-          let text = '';
-          for (const chunk of nameDataObj.data) {
-            if (chunk) {
-              // Try decoding as shortString first
-              try {
-                text += shortString.decodeShortString(chunk.toString());
-              } catch {
-                // Just append the raw chunk if decoding fails
-                text += chunk.toString();
-              }
+  if (nameData && nameData.data) {
+    try {
+      // Check if it's an array of bytes31
+      if (Array.isArray(nameData.data)) {
+        let text = '';
+        for (const chunk of nameData.data) {
+          if (chunk) {
+            // Try decoding as shortString first
+            try {
+              text += shortString.decodeShortString(chunk.toString());
+            } catch {
+              // Just append the raw chunk if decoding fails
+              text += chunk.toString();
             }
           }
-          if (text) return text;
         }
-      } catch (error) {
-        console.error(`Error processing data array for song ${songId}:`, error);
+        if (text) return text;
       }
+    } catch (e) {
+      console.error(`Error processing data array for song ${songId}:`, e);
     }
   }
   
   // If nameData is an object with a name property, use that
-  if (nameData && typeof nameData === 'object' && nameData !== null && 'name' in nameData) {
-    const nameDataObj = nameData as Record<string, unknown>;
-    return String(nameDataObj.name);
+  if (nameData && typeof nameData === 'object' && 'name' in nameData) {
+    return String(nameData.name);
   }
   
   // Last resort: use a generic name with the ID
@@ -493,10 +494,7 @@ const SongCard = ({
                 }}
                 className={`${isOwned ? "text-green-500/80 hover:text-green-500" : "text-blue-400/80 hover:text-blue-400"} flex items-center text-xs ml-3`}
               >
-                {isOwned || hasUserSubscription ? 
-                  "Play Full" : 
-                  "Play Full (20s Preview)"}
-                <Play className="ml-1 h-3 w-3" />
+                Play Full <Play className="ml-1 h-3 w-3" />
               </button>
             )}
           </div>
@@ -543,23 +541,6 @@ const SubscribeModal = ({
 }) => {
   if (!isOpen || !song) return null;
   
-  // Prevent closing when clicking buttons
-  const handleBuy = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (song) {
-      onBuy(song.id);
-    }
-    // Do not close modal here - this will be handled by the transaction logic
-  };
-  
-  const handleSubscribe = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    onSubscribe();
-    // Do not close modal here - this will be handled by the transaction logic
-  };
-  
   return (
     <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/80 backdrop-blur-sm">
       <div className="bg-[#1A1A1A] border border-[#333333] rounded-xl p-6 max-w-md w-full">
@@ -577,7 +558,7 @@ const SubscribeModal = ({
         
         <div className="mb-6">
           <p className="text-gray-300 mb-4">
-            You&apos;ve reached the preview limit for <span className="text-primary font-semibold">{song.name}</span>.
+            You've reached the preview limit for <span className="text-primary font-semibold">{song.name}</span>.
           </p>
           
           <div className="flex items-center justify-center mb-6">
@@ -592,18 +573,18 @@ const SubscribeModal = ({
           
           <div className="space-y-4">
             <button
-              onClick={handleBuy}
+              onClick={() => onBuy(song.id)}
               disabled={isLoading}
               className="w-full bg-primary text-white px-4 py-3 rounded-lg hover:bg-primary/90 transition-colors flex items-center justify-center"
             >
               {isLoading ? (
                 <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full mr-2"></div>
               ) : null}
-              Buy this song for {(Number(song.price) / 10**18).toFixed(2)} STARK
+              Buy this song for {(Number(song.price) / 10**18).toFixed(4)} STARK
             </button>
             
             <button
-              onClick={handleSubscribe}
+              onClick={onSubscribe}
               disabled={isLoading}
               className="w-full bg-white/10 text-white px-4 py-3 rounded-lg hover:bg-white/20 transition-colors flex items-center justify-center"
             >
@@ -639,17 +620,6 @@ export default function SongList() {
   const [currentModalSong, setCurrentModalSong] = useState<Song | null>(null);
   const [hasUserSubscription, setHasUserSubscription] = useState(false);
   const [isTransactionPending, setIsTransactionPending] = useState(false);
-  const [currentTransactionType, setCurrentTransactionType] = useState<'buy' | 'subscribe' | null>(null);
-
-  // Search and sort state
-  const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState('Popular');
-  const [songGenres, setSongGenres] = useState<Record<string, string>>({});
-  const [streamCounts, setStreamCounts] = useState<Record<string, number>>({});
-  const [artistNames, setArtistNames] = useState<Record<string, string>>({});
-
-  // List of genres for random assignment - wrap in useMemo to avoid dependency issues
-  const genres = useMemo(() => ['Electronic', 'Pop', 'Hip Hop', 'Rock', 'Jazz', 'Blues', 'Classical'], []);
 
   const { sendAsync } = useSendTransaction({ calls: [] });
   const { contract } = useContract({
@@ -665,6 +635,7 @@ export default function SongList() {
     args: [],
   });
 
+  // Check if the user has a subscription
   const { data: userSubscriptionData } = useReadContract({
     abi: CAIROFY_ABI,
     address: CAIROFY_CONTRACT_ADDRESS,
@@ -673,23 +644,17 @@ export default function SongList() {
     enabled: Boolean(address),
   });
 
-  // Helper to check if the current wallet owns the song
-  const isOwnedByUser = useCallback((songOwner: string): boolean => {
-    if (!userWallet || !songOwner) return false;
-    return userWallet.toLowerCase() === songOwner.toLowerCase();
-  }, [userWallet]);
-
   // Check if subscription is valid
   useEffect(() => {
     if (userSubscriptionData) {
       try {
-        const currentDate = Math.floor(Date.now() / 1000); // Current timestamp in seconds
+        const subscriptionStartDate = Number(userSubscriptionData.start_date);
         const subscriptionExpiryDate = Number(userSubscriptionData.expiry_date);
+        const currentDate = Math.floor(Date.now() / 1000); // Current timestamp in seconds
         
         // Check if subscription is active
-        const isActive = subscriptionExpiryDate > currentDate;
-        setHasUserSubscription(isActive);
-        console.log('Subscription status:', isActive, 'Expires:', new Date(subscriptionExpiryDate * 1000).toLocaleDateString());
+        setHasUserSubscription(subscriptionExpiryDate > currentDate);
+        console.log('Subscription status:', hasUserSubscription, 'Expires:', new Date(subscriptionExpiryDate * 1000).toLocaleDateString());
       } catch (error) {
         console.error('Error checking subscription:', error);
         setHasUserSubscription(false);
@@ -711,6 +676,9 @@ export default function SongList() {
     const isOwned = isOwnedByUser(currentSong.owner);
     if (isOwned) return; // No time limit for owned songs
     
+    // Reference to audio element for cleanup
+    const audioElement = audioRef.current;
+    
     // Set up timer to check if we hit the 20-second limit
     const checkInterval = setInterval(() => {
       if (audioRef.current && audioRef.current.currentTime > 20) {
@@ -731,7 +699,7 @@ export default function SongList() {
       // Only clear the interval, don't pause playback when unmounting
       clearInterval(checkInterval);
     };
-  }, [playingSongId, isPlaying, songs, hasUserSubscription, isOwnedByUser]);
+  }, [playingSongId, isPlaying, songs, hasUserSubscription]);
 
   // Update user wallet when address changes
   useEffect(() => {
@@ -829,51 +797,22 @@ export default function SongList() {
       });
 
       setSongs(parsedSongs);
-
-      // Populate additional data for filters
-      const newGenres: Record<string, string> = {};
-      const newStreamCounts: Record<string, number> = {};
-      const newArtistNames: Record<string, string> = {};
-      
-      parsedSongs.forEach((song) => {
-        const songId = song.id.toString();
-        const randomGenre = genres[Math.floor(Math.random() * (genres.length - 1)) + 1]; // Skip "All Genres"
-        const randomStreamCount = Math.floor(Math.random() * 500000) + 50000;
-        
-        newGenres[songId] = randomGenre;
-        newStreamCounts[songId] = randomStreamCount;
-        newArtistNames[songId] = `Artist ${songId}`;
-      });
-      
-      setSongGenres(newGenres);
-      setStreamCounts(newStreamCounts);
-      setArtistNames(newArtistNames);
-
       console.log("Parsed songs:", parsedSongs);
       } catch (error) {
         console.error("Error processing songs data:", error);
       }
     }
-  }, [data, genres]);
+  }, [data]);
 
   // Subscribe function
   const handleSubscribe = async () => {
-    // If another transaction is already in progress, prevent this one
-    if (isTransactionPending || currentTransactionType) {
-      toast.error("A transaction is already in progress. Please wait for it to complete.");
-      return;
-    }
-    
     if (!address) {
       toast.error("Please connect your wallet first");
       return;
     }
     
     try {
-      // Set transaction pending state
       setIsTransactionPending(true);
-      setCurrentTransactionType('subscribe');
-      
       toast.loading("Please confirm the subscription transaction in your wallet...", {
         id: "subscribe-transaction-pending",
       });
@@ -883,7 +822,6 @@ export default function SongList() {
           id: "subscribe-transaction-pending",
         });
         setIsTransactionPending(false);
-        setCurrentTransactionType(null);
         return;
       }
       
@@ -944,7 +882,6 @@ export default function SongList() {
       });
     } finally {
       setIsTransactionPending(false);
-      setCurrentTransactionType(null);
     }
   };
 
@@ -1013,15 +950,15 @@ export default function SongList() {
       // we'll still play but will enforce the 20-second limit via the useEffect
     } else {
       // Preview version checks
-      if (!song.previewIpfsHash) {
-        toast.error("No preview available for this song");
-        return;
+    if (!song.previewIpfsHash) {
+      toast.error("No preview available for this song");
+      return;
       }
     }
     
     // Get the appropriate IPFS hash based on whether playing full or preview
     const ipfsHash = playFullVersion ? song.ipfsHash : song.previewIpfsHash;
-    
+
     // Skip if we know this audio URL has failed before
     if (failedAudioUrls[ipfsHash]) {
       toast.error(`Audio ${playFullVersion ? 'full version' : 'preview'} unavailable for this song`);
@@ -1033,7 +970,7 @@ export default function SongList() {
       if (isPlaying) {
         if (audioRef.current) {
           audioRef.current.pause();
-          setIsPlaying(false);
+        setIsPlaying(false);
         }
       } else {
         try {
@@ -1070,11 +1007,11 @@ export default function SongList() {
       try {
         // Get the IPFS URL asynchronously
         const audioUrl = await getCachedIPFSUrl(ipfsHash, true);
-        if (!audioUrl) {
-          toast.error("Invalid audio source");
-          setLoadingAudio(false);
-          return;
-        }
+      if (!audioUrl) {
+        toast.error("Invalid audio source");
+        setLoadingAudio(false);
+        return;
+      }
 
         // Log the actual audio URL for debugging
         console.log(`Playing ${playFullVersion ? 'full version' : 'preview'} from:`, audioUrl);
@@ -1102,14 +1039,14 @@ export default function SongList() {
               newAudio.crossOrigin = "anonymous";
               
               // Create a promise that resolves when canplaythrough fires or rejects on error
-              const canPlayPromise = new Promise<HTMLAudioElement>((resolve, reject) => {
+              const canPlayPromise = new Promise((resolve, reject) => {
                 const onCanPlay = () => {
                   newAudio.removeEventListener('canplaythrough', onCanPlay);
                   newAudio.removeEventListener('error', onError);
                   resolve(newAudio);
                 };
                 
-                const onError = () => {
+                const onError = (e: Event) => {
                   newAudio.removeEventListener('canplaythrough', onCanPlay);
                   newAudio.removeEventListener('error', onError);
                   reject(new Error(`Failed to load audio from ${currentUrl}`));
@@ -1201,13 +1138,13 @@ export default function SongList() {
     }
   };
 
+  // Helper to check if the current wallet owns the song
+  const isOwnedByUser = (songOwner: string): boolean => {
+    if (!userWallet || !songOwner) return false;
+    return userWallet.toLowerCase() === songOwner.toLowerCase();
+  };
+
   const buySong = async (songId: number) => {
-    // If another transaction is already in progress, prevent this one
-    if (isTransactionPending || currentTransactionType) {
-      toast.error("A transaction is already in progress. Please wait for it to complete.");
-      return;
-    }
-    
     if (!address) {
       toast.error("Please connect your wallet first");
       return;
@@ -1224,12 +1161,9 @@ export default function SongList() {
       
       if (!songToBuy.forSale) {
         toast.error("This song is not for sale");
+        setShowSubscribeModal(false);
         return;
       }
-      
-      // Set transaction pending state to disable buttons and show loading indicators
-      setIsTransactionPending(true);
-      setCurrentTransactionType('buy');
       
       toast.loading("Please confirm the transaction in your wallet...", {
         id: "buy-transaction-pending",
@@ -1239,8 +1173,6 @@ export default function SongList() {
         toast.error("Contract not initialized", {
           id: "buy-transaction-pending",
         });
-        setIsTransactionPending(false);
-        setCurrentTransactionType(null);
         return;
       }
       
@@ -1256,14 +1188,11 @@ export default function SongList() {
       // Send transaction
       const response = await sendAsync([call]);
         
-      if (response.transaction_hash) {
-        toast.success(`Transaction submitted! Hash: ${response.transaction_hash.substring(0, 10)}...`, {
-          id: "buy-transaction-pending",
-        });
+        if (response.transaction_hash) {
+          toast.success(`Transaction submitted! Hash: ${response.transaction_hash.substring(0, 10)}...`, {
+            id: "buy-transaction-pending",
+          });
         console.log("Buy transaction submitted:", response.transaction_hash);
-        
-        // Close modal after successful transaction
-        setShowSubscribeModal(false);
       } else {
         throw new Error("No transaction hash returned");
       }
@@ -1280,10 +1209,6 @@ export default function SongList() {
       toast.error(`Failed to buy song: ${errorMessage}`, {
         id: "buy-transaction-pending",
       });
-    } finally {
-      // Always reset the loading state when transaction completes or fails
-      setIsTransactionPending(false);
-      setCurrentTransactionType(null);
     }
   };
 
@@ -1321,111 +1246,14 @@ export default function SongList() {
     </div>
   );
 
-  // Filter songs based on search, genre, and price
-  const filteredSongs = songs.filter(song => {
-    const songId = song.id.toString();
-    const title = song.name;
-    const artistName = artistNames[songId] || '';
-    
-    // Only filter by search query
-    return searchQuery === '' || 
-           title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-           artistName.toLowerCase().includes(searchQuery.toLowerCase());
-  });
-
-  // Sort songs based on selected sort criteria
-  const sortedSongs = [...filteredSongs].sort((a, b) => {
-    const aId = a.id.toString();
-    const bId = b.id.toString();
-    
-    if (sortBy === 'Popular') {
-      return (streamCounts[bId] || 0) - (streamCounts[aId] || 0);
-    } else if (sortBy === 'Price: Low to High') {
-      return Number(a.price) - Number(b.price);
-    } else if (sortBy === 'Price: High to Low') {
-      return Number(b.price) - Number(a.price);
-    } else if (sortBy === 'Newest') {
-      // For this demo, we'll just sort by ID as a proxy for newest
-      return Number(b.id) - Number(a.id);
-    }
-    return 0;
-  });
-
   return (
     <div className="min-h-screen bg-[#0F0F0F] flex flex-col">
       <Navbar />
       <main className="container mx-auto px-4 py-12 pt-24 pb-24">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-white flex items-center mb-2">
-              <ShoppingBag className="mr-2 h-6 w-6" />
-              Available Songs
-            </h1>
-            <p className="text-white/70">
-              Discover and play music from artists on the blockchain
-            </p>
-          </div>
-          
-          <div className="flex gap-3">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button className="flex items-center gap-2 text-white">
-                  <SlidersHorizontal className="h-4 w-4" />
-                  Sort: {sortBy}
-                  <ChevronDown className="h-4 w-4 ml-1" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="bg-[#1A1A1A] border-[#333333]">
-                <DropdownMenuItem 
-                  className="text-white hover:bg-[#0EA5E9]/10 cursor-pointer"
-                  onClick={() => setSortBy('Popular')}
-                >
-                  Popular
-                </DropdownMenuItem>
-                <DropdownMenuItem 
-                  className="text-white hover:bg-[#0EA5E9]/10 cursor-pointer"
-                  onClick={() => setSortBy('Price: Low to High')}
-                >
-                  Price: Low to High
-                </DropdownMenuItem>
-                <DropdownMenuItem 
-                  className="text-white hover:bg-[#0EA5E9]/10 cursor-pointer"
-                  onClick={() => setSortBy('Price: High to Low')}
-                >
-                  Price: High to Low
-                </DropdownMenuItem>
-                <DropdownMenuItem 
-                  className="text-white hover:bg-[#0EA5E9]/10 cursor-pointer"
-                  onClick={() => setSortBy('Newest')}
-                >
-                  Newest
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </div>
-        
-        {/* Search and Filters */}
-        <div className="mb-6">
-          <div className="relative mb-4 px-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/50 h-5 w-5" />
-            <Input
-              type="text"
-              placeholder="Search for songs or artists..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 py-6 bg-[#1A1A1A] border-[#333333] text-white rounded-xl focus:border-primary focus:ring-primary"
-            />
-          </div>
-          
-          {/* Results Count */}
-          <div className="mb-6">
-            <p className="text-white/70">
-              Showing {sortedSongs.length} {sortedSongs.length === 1 ? 'result' : 'results'}
-              {searchQuery && ` for "${searchQuery}"`}
-            </p>
-          </div>
-        </div>
+        <h1 className="text-3xl font-bold text-white mb-8 flex items-center">
+          <ShoppingBag className="mr-2 h-6 w-6" />
+          Available Songs
+        </h1>
         
         {/* Show user wallet if connected */}
         {userWallet && (
@@ -1455,8 +1283,8 @@ export default function SongList() {
             <p className="text-white">No songs found in the contract.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {sortedSongs.map((song) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {songs.map((song) => (
               <SongCard 
                 key={song.id}
                 song={song}
@@ -1476,121 +1304,70 @@ export default function SongList() {
                 hasUserSubscription={hasUserSubscription}
               />
             ))}
-          </div>
+                        </div>
         )}
         
-        {/* Footer */}
-        <footer className="mt-12 border-t border-[#333333] pt-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <div>
-              <h3 className="text-white font-bold text-lg mb-4">Cairofy</h3>
-              <p className="text-white/60 text-sm">
-                A decentralized music platform built on StarkNet, enabling artists to tokenize and sell their music directly to fans.
-              </p>
-            </div>
-            
-            <div>
-              <h3 className="text-white font-bold text-lg mb-4">Features</h3>
-              <ul className="space-y-2">
-                <li><a href="#" className="text-white/60 hover:text-primary text-sm">Discover Music</a></li>
-                <li><a href="#" className="text-white/60 hover:text-primary text-sm">Upload Your Tracks</a></li>
-                <li><a href="#" className="text-white/60 hover:text-primary text-sm">Artist Dashboard</a></li>
-                <li><a href="#" className="text-white/60 hover:text-primary text-sm">Subscription Plan</a></li>
-              </ul>
-            </div>
-            
-            <div>
-              <h3 className="text-white font-bold text-lg mb-4">Resources</h3>
-              <ul className="space-y-2">
-                <li><a href="#" className="text-white/60 hover:text-primary text-sm">Help Center</a></li>
-                <li><a href="#" className="text-white/60 hover:text-primary text-sm">Documentation</a></li>
-                <li><a href="#" className="text-white/60 hover:text-primary text-sm">API</a></li>
-                <li><a href="#" className="text-white/60 hover:text-primary text-sm">Community</a></li>
-              </ul>
-            </div>
-            
-            <div>
-              <h3 className="text-white font-bold text-lg mb-4">Connect</h3>
-              <ul className="space-y-2">
-                <li><a href="#" className="text-white/60 hover:text-primary text-sm">Twitter</a></li>
-                <li><a href="#" className="text-white/60 hover:text-primary text-sm">Discord</a></li>
-                <li><a href="#" className="text-white/60 hover:text-primary text-sm">GitHub</a></li>
-              </ul>
-            </div>
-          </div>
-          
-          <div className="mt-8 pt-6 border-t border-[#333333] flex flex-col md:flex-row justify-between items-center">
-            <p className="text-white/40 text-sm">© 2023 Cairofy. All rights reserved.</p>
-            <div className="flex gap-4 mt-4 md:mt-0">
-              <a href="#" className="text-white/40 hover:text-primary text-sm">Terms</a>
-              <a href="#" className="text-white/40 hover:text-primary text-sm">Privacy</a>
-              <a href="#" className="text-white/40 hover:text-primary text-sm">Cookies</a>
-            </div>
-          </div>
-        </footer>
-      </main>
-      
-      {/* Now Playing Bar - only show when a song is playing */}
-      {playingSongId !== null && (
-        <div className="fixed bottom-0 left-0 right-0 bg-black/90 border-t border-gray-800 p-4 backdrop-blur-lg">
-          <div className="container mx-auto flex items-center justify-between">
-            <div className="flex items-center">
-              {isPlaying ? (
-                <button onClick={() => {
-                  if (audioRef.current) {
-                    audioRef.current.pause();
-                    setIsPlaying(false);
-                  }
-                }} className="bg-white rounded-full p-2 mr-4">
-                  <Pause className="h-6 w-6 text-black" />
-                </button>
-              ) : (
-                <button onClick={() => {
-                  if (audioRef.current) {
-                    audioRef.current.play().catch(console.error);
-                    setIsPlaying(true);
-                  }
-                }} className="bg-white rounded-full p-2 mr-4">
-                  <Play className="h-6 w-6 text-black" />
-                </button>
-              )}
-              
-              <div>
-                <p className="text-white font-medium">
-                  {songs.find(s => s.id === playingSongId)?.name || 'Unknown Song'}
-                </p>
-                <div className="flex items-center">
-                  <p className="text-gray-400 text-sm">
-                    Now playing {isPlayingFullVersion ? 'full version' : 'preview'}
+        {/* Now Playing Bar - only show when a song is playing */}
+        {playingSongId !== null && (
+          <div className="fixed bottom-0 left-0 right-0 bg-black/90 border-t border-gray-800 p-4 backdrop-blur-lg">
+            <div className="container mx-auto flex items-center justify-between">
+              <div className="flex items-center">
+                {isPlaying ? (
+                  <button onClick={() => {
+                    if (audioRef.current) {
+                      audioRef.current.pause();
+                      setIsPlaying(false);
+                    }
+                  }} className="bg-white rounded-full p-2 mr-4">
+                    <Pause className="h-6 w-6 text-black" />
+                  </button>
+                ) : (
+                  <button onClick={() => {
+                    if (audioRef.current) {
+                      audioRef.current.play().catch(console.error);
+                      setIsPlaying(true);
+                    }
+                  }} className="bg-white rounded-full p-2 mr-4">
+                    <Play className="h-6 w-6 text-black" />
+                  </button>
+                )}
+                
+                <div>
+                  <p className="text-white font-medium">
+                    {songs.find(s => s.id === playingSongId)?.name || 'Unknown Song'}
                   </p>
-                  
-                  {/* Preview countdown for non-owned songs */}
-                  {!isPlayingFullVersion && 
-                   playingSongId !== null && 
-                   !hasUserSubscription && 
-                   !isOwnedByUser(songs.find(s => s.id === playingSongId)?.owner || '') && (
-                    <div className="ml-3 text-yellow-400 text-xs font-medium flex items-center">
-                      <div className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse mr-1"></div>
-                      Preview ends in {Math.max(0, 20 - Math.floor(currentTime))}s
-                    </div>
-                  )}
+                  <div className="flex items-center">
+                  <p className="text-gray-400 text-sm">
+                      Now playing {isPlayingFullVersion ? 'full version' : 'preview'}
+                    </p>
+                    
+                    {/* Preview countdown for non-owned songs */}
+                    {!isPlayingFullVersion && 
+                     playingSongId !== null && 
+                     !hasUserSubscription && 
+                     !isOwnedByUser(songs.find(s => s.id === playingSongId)?.owner || '') && (
+                      <div className="ml-3 text-yellow-400 text-xs font-medium flex items-center">
+                        <div className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse mr-1"></div>
+                        Preview ends in {Math.max(0, 20 - Math.floor(currentTime))}s
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-            
-            <div className="flex-1 mx-8 max-w-2xl">
-              <div className="flex items-center justify-between text-white text-xs mb-1">
-                        <span>{formatTime(currentTime)}</span>
-                        <span>{formatTime(duration)}</span>
+              
+              <div className="flex-1 mx-8 max-w-2xl">
+                <div className="flex items-center justify-between text-white text-xs mb-1">
+                          <span>{formatTime(currentTime)}</span>
+                          <span>{formatTime(duration)}</span>
+                        </div>
+                <div className="w-full bg-white/20 h-2 rounded-full overflow-hidden">
+                          <div 
+                            className="bg-primary h-full rounded-full" 
+                            style={{ width: `${(currentTime / duration) * 100}%` }}
+                          ></div>
+                        </div>
                       </div>
-              <div className="w-full bg-white/20 h-2 rounded-full overflow-hidden">
-                        <div 
-                          className="bg-primary h-full rounded-full" 
-                          style={{ width: `${(currentTime / duration) * 100}%` }}
-                        ></div>
-                      </div>
-                    </div>
-            
+              
               <button onClick={toggleMute} className="text-white p-2">
                 {isMuted ? (
                   <VolumeX className="h-6 w-6" />
@@ -1598,9 +1375,10 @@ export default function SongList() {
                   <Volume2 className="h-6 w-6" />
                 )}
                           </button>
+                </div>
           </div>
-        </div>
-      )}
+        )}
+      </main>
       
       {/* Subscription/Buy Modal */}
       <SubscribeModal

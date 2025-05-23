@@ -1,5 +1,4 @@
 'use client';
-import React, { useEffect } from 'react';
 import Button from './Button';
 import { Connector, useAccount, useConnect, useDisconnect } from '@starknet-react/core';
 import { StarknetkitConnector, useStarknetkitConnectModal } from 'starknetkit';

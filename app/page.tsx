@@ -281,7 +281,7 @@ const Page = () => {
                 className=" flex items-center justify-center animate-pulse-glow"
                 asChild
               >
-                <Link href="/marketplace" className="text-white">
+                <Link href="/fetch" className="text-white">
                   <Play className="h-5 w-5 mr-2" />
                   Start Listening
                   <ArrowRight className="ml-2 h-4 w-4 transform group-hover:translate-x-1 transition-transform" />
@@ -292,7 +292,7 @@ const Page = () => {
                 className="flex items-center justify-center"
                 asChild
               >
-                <Link href="/upload" className="text-white">
+                <Link href="/" className="text-white">
                   <MusicIcon className="h-5 w-5 mr-2" />
                   Become an Artist
                 </Link>
