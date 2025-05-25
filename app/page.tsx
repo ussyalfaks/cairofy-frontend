@@ -292,7 +292,7 @@ const Page = () => {
                 className="flex items-center justify-center"
                 asChild
               >
-                <Link href="/" className="text-white">
+                <Link href="/register-artiste" className="text-white">
                   <MusicIcon className="h-5 w-5 mr-2" />
                   Become an Artist
                 </Link>
