@@ -59,6 +59,7 @@ const getIPFSUrl = (ipfsHash: string, fallbackIndex = 0): string => {
 };
 
 // Helper function to extract text from ByteArray
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const extractByteArrayText = (byteArray: any): string => {
   // If it's not a ByteArray-like object, return empty
   if (!byteArray || typeof byteArray !== 'object') {
@@ -110,6 +111,7 @@ const extractByteArrayText = (byteArray: any): string => {
 };
 
 // Better song name decoder
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const decodeSongName = (nameData: any): string => {
   // Handle ByteArray format
   const extractedName = extractByteArrayText(nameData);
@@ -272,12 +274,15 @@ const SongDetail = () => {
         const randomListeners = Math.floor(Math.random() * 50000) + 5000;
         
         // Get similar songs from all songs
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let similarSongs: any[] = [];
         if (allSongs && Array.isArray(allSongs) && allSongs.length > 0) {
           // Filter out current song and get up to 3 others
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           similarSongs = allSongs
             .filter((s: any) => s.id.toString() !== songId)
             .slice(0, 3)
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             .map((s: any, index: number) => {
               const similarSongPrice = typeof s.price === 'object' && 'low' in s.price 
                 ? Number(s.price.low) / 10**18 

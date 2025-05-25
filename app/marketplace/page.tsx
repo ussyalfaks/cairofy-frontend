@@ -819,6 +819,7 @@ const Page = () => {
           {/* Currently Playing Card */}
           <div className="rounded-2xl overflow-hidden shadow-xl bg-[#111]">
             <div className="relative">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src="https://images.unsplash.com/photo-1511367461989-f85a21fda167?auto=format&fit=crop&w=600&q=80"
                 alt="Currently Playing Cover"

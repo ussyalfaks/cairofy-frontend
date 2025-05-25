@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useContract, useReadContract, useSendTransaction, useAccount } from "@starknet-react/core";
 import { CAIROFY_ABI, CAIROFY_CONTRACT_ADDRESS } from "@/constants/contrat";
 import { shortString } from "starknet";
@@ -177,6 +177,7 @@ const extractByteArrayText = (byteArray: any): string => {
 };
 
 // Simple ByteArray decoder - fallback for various use cases
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const decodeByteArray = (byteArray: any): string => {
   // First try our specialized extractor
   const extracted = extractByteArrayText(byteArray);
@@ -203,6 +204,7 @@ const decodeByteArray = (byteArray: any): string => {
 };
 
 // Update the decodeSongName function to better handle ByteArray
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const decodeSongName = (nameData: any, songId: number): string => {
   console.log(`Decoding name for Song ID ${songId}:`, nameData);
   
@@ -555,10 +557,9 @@ const SubscribeModal = ({
             </svg>
           </button>
         </div>
-        
         <div className="mb-6">
           <p className="text-gray-300 mb-4">
-            You've reached the preview limit for <span className="text-primary font-semibold">{song.name}</span>.
+            You&apos;ve reached the preview limit for <span className="text-primary font-semibold">{song.name}</span>.
           </p>
           
           <div className="flex items-center justify-center mb-6">
@@ -664,6 +665,12 @@ export default function SongList() {
     }
   }, [userSubscriptionData]);
 
+  // Helper to check if the current wallet owns the song
+  const isOwnedByUser = useCallback((songOwner: string): boolean => {
+    if (!userWallet || !songOwner) return false;
+    return userWallet.toLowerCase() === songOwner.toLowerCase();
+  }, [userWallet]);
+
   // Time limit effect for non-owned songs
   useEffect(() => {
     // Skip if no song is playing or user has a subscription
@@ -676,30 +683,23 @@ export default function SongList() {
     const isOwned = isOwnedByUser(currentSong.owner);
     if (isOwned) return; // No time limit for owned songs
     
-    // Reference to audio element for cleanup
-    const audioElement = audioRef.current;
+    // const audioElement = audioRef.current;
     
     // Set up timer to check if we hit the 20-second limit
     const checkInterval = setInterval(() => {
       if (audioRef.current && audioRef.current.currentTime > 20) {
-        // Pause playback
         audioRef.current.pause();
         setIsPlaying(false);
-        
-        // Show the subscription modal with the current song
         setCurrentModalSong(currentSong);
         setShowSubscribeModal(true);
-        
-        // Clear the interval
         clearInterval(checkInterval);
       }
-    }, 1000); // Check every second
+    }, 1000);
     
     return () => {
-      // Only clear the interval, don't pause playback when unmounting
       clearInterval(checkInterval);
     };
-  }, [playingSongId, isPlaying, songs, hasUserSubscription]);
+  }, [playingSongId, isPlaying, songs, hasUserSubscription, isOwnedByUser]);
 
   // Update user wallet when address changes
   useEffect(() => {
@@ -1136,12 +1136,6 @@ export default function SongList() {
       audioRef.current.muted = !audioRef.current.muted;
       setIsMuted(!isMuted);
     }
-  };
-
-  // Helper to check if the current wallet owns the song
-  const isOwnedByUser = (songOwner: string): boolean => {
-    if (!userWallet || !songOwner) return false;
-    return userWallet.toLowerCase() === songOwner.toLowerCase();
   };
 
   const buySong = async (songId: number) => {

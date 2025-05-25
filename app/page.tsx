@@ -123,7 +123,7 @@ const Page = () => {
           'https://images.unsplash.com/photo-1446057032654-9d8885db76c6?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTR8fG11c2ljfGVufDB8fDB8fHww',
           'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTB8fG11c2ljfGVufDB8fDB8fHww',
         ];
-        
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const allSongs = contractSongs.map((song: any, index: number) => {
           // Convert price from contract format (low/high) to display format
           const priceInEth = typeof song.price === 'object' && 'low' in song.price 
