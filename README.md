@@ -14,7 +14,7 @@ Before running the application, you need to set up environment variables:
 2. Update the values in the `.env` file with your actual credentials:
    ```
    # Pinata (IPFS) Configuration
-   NEXT_PUBLIC_PINATA_JWT="your_pinata_jwt_here"
+   PINATA_JWT="your_pinata_jwt_here"
    
    # Optional: StarkNet Configuration
    NEXT_PUBLIC_STARKNET_RPC_URL="your_starknet_rpc_url_here"

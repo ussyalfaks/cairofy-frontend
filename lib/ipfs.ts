@@ -1,4 +1,4 @@
-const JWT = process.env.NEXT_PUBLIC_PINATA_JWT;
+const JWT = process.env.PINATA_JWT;
 const PINATA_API_URL = "https://api.pinata.cloud/pinning/pinFileToIPFS";
 
 export interface IPFSResponse {

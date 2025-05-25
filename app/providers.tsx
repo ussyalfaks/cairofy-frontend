@@ -34,7 +34,7 @@ export function Providers({ children }: ProvidersProps) {
   const rpc = useCallback((chain: Chain) => {
     // Use multiple fallback RPC endpoints
     const endpoints = [
-      process.env.NEXT_PUBLIC_ALCHEMY_RPC,
+      process.env.ALCHEMY_RPC,
       'https://starknet-sepolia.public.blastapi.io',
       'https://rpc.sepolia.starknet.io',
     ].filter(Boolean);
